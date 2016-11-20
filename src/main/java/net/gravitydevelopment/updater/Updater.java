@@ -5,6 +5,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.security.MessageDigest;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.zip.ZipEntry;
@@ -46,6 +47,8 @@ public class Updater {
     private static final String TYPE_VALUE = "releaseType";
     // Remote file's build version
     private static final String VERSION_VALUE = "gameVersion";
+    // Remote file's md5 sum
+    private static final String MD5_VALUE = "md5";
     // Path to GET
     private static final String QUERY = "/servermods/files?projectIds=";
     // Slugs will be appended to this to get to the project's RSS feed
@@ -92,6 +95,7 @@ public class Updater {
     private String versionLink;
     private String versionType;
     private String versionGameVersion;
+    private String versionMD5;
 
     /* Update process variables */
 
@@ -394,7 +398,8 @@ public class Updater {
             URL fileUrl = followRedirects(this.versionLink);
             final int fileLength = fileUrl.openConnection().getContentLength();
             in = new BufferedInputStream(fileUrl.openStream());
-            fout = new FileOutputStream(new File(this.updateFolder, file.getName()));
+            File updateFile = new File(this.updateFolder, file.getName());
+            fout = new FileOutputStream(updateFile);
 
             final byte[] data = new byte[Updater.BYTE_SIZE];
             int count;
@@ -402,13 +407,26 @@ public class Updater {
                 this.plugin.getLogger().info("About to download a new update: " + this.versionName);
             }
             long downloaded = 0;
+            MessageDigest md = MessageDigest.getInstance("MD5");
             while ((count = in.read(data, 0, Updater.BYTE_SIZE)) != -1) {
                 downloaded += count;
                 fout.write(data, 0, count);
+                md.update(data, 0, count);
                 final int percent = (int) ((downloaded * 100) / fileLength);
                 if (this.announce && ((percent % 10) == 0)) {
                     this.plugin.getLogger().info("Downloading update: " + percent + "% of " + fileLength + " bytes.");
                 }
+            }
+            byte[] md5bytes = md.digest();
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < md5bytes.length; i++) {
+                sb.append(Integer.toString((md5bytes[i] & 0xff) + 0x100, 16).substring(1));
+            }
+            String md5 = sb.toString();
+            if (!md5.equals(this.versionMD5)) {
+                this.plugin.getLogger().warning("Downloaded file did not match the remote file!");
+                this.fileIOOrError(updateFile, updateFile.delete(), false);
+                this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
             }
         } catch (Exception ex) {
             this.plugin.getLogger().log(Level.WARNING, "The auto-updater tried to download a new update, but was unsuccessful.", ex);
@@ -684,6 +702,7 @@ public class Updater {
             this.versionLink = (String) latestUpdate.get(Updater.LINK_VALUE);
             this.versionType = (String) latestUpdate.get(Updater.TYPE_VALUE);
             this.versionGameVersion = (String) latestUpdate.get(Updater.VERSION_VALUE);
+            this.versionMD5 = (String) latestUpdate.get(Updater.MD5_VALUE);
 
             return true;
         } catch (final IOException e) {
