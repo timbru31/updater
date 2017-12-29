@@ -57,7 +57,7 @@ Add the following repo to your `pom.xml`:
 
 ## JavaDocs
 
-The JavaDocs are updated with every new release and can be found here: https://ci.dustplanet.de/job/updater/javadoc/
+The JavaDocs can be found here: https://ci.dustplanet.de/job/updater/javadoc/
 
 ---
 Built by (c) Tim Brust and contributors. Released under the MIT license.
