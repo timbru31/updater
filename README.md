@@ -42,7 +42,7 @@ Add the following repo to your `pom.xml`:
     <repositories>
         <repository>
             <id>dustplanet-snapshots</id>
-            <url><url>https://repo.dustplanet.de/artifactory/libs-snapshot-local/</url>
+            <url>https://repo.dustplanet.de/artifactory/libs-snapshot-local/</url>
         </repository>
     </repositories>
 
