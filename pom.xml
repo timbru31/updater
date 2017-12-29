@@ -14,11 +14,11 @@
 
     <distributionManagement>
         <snapshotRepository>
-            <id>libs-snapshot-local</id>
+            <id>dustplanet</id>
             <url>https://repo.dustplanet.de/artifactory/libs-snapshot-local</url>
         </snapshotRepository>
         <repository>
-            <id>libs-release-local</id>
+            <id>dustplanet</id>
             <url>https://repo.dustplanet.de/artifactory/libs-release-local</url>
         </repository>
     </distributionManagement>
