@@ -1,6 +1,7 @@
 /target/
 *.iml
 *.properties
+dependency-reduced-pom.xml
 
 # eclipse stuff
 .classpath
