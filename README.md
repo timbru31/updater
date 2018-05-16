@@ -1,6 +1,5 @@
 Updater  
 [![Build Status](https://ci.dustplanet.de/job/updater/badge/icon)](https://ci.dustplanet.de/job/updater/)
-[![Dependency Status](https://beta.gemnasium.com/badges/github.com/timbru31/updater.svg)](https://beta.gemnasium.com/projects/github.com/timbru31/updater)
 [![Known Vulnerabilities](https://snyk.io/test/github/timbru31/updater/badge.svg)](https://snyk.io/test/github/timbru31/updater)
 ===
 
