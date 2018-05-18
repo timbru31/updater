@@ -8,12 +8,15 @@
     <relativePath />
   </parent>
 
-
   <groupId>net.gravitydevelopment.updater</groupId>
   <artifactId>updater</artifactId>
   <version>3.0.1-SNAPSHOT</version>
   <name>Updater</name>
   <url>https://bukkit.org/threads/96681/</url>
+  
+  <properties>
+    <plugin.name>updater</plugin.name>
+  </properties>
 
   <distributionManagement>
     <snapshotRepository>
