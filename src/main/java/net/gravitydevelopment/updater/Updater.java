@@ -14,6 +14,7 @@ import java.net.URLConnection;
 import java.security.MessageDigest;
 import java.util.Enumeration;
 import java.util.logging.Level;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -94,6 +95,7 @@ public class Updater {
     private int id = -1;
     // BukkitDev ServerMods API key
     private String apiKey = null;
+    private ReleaseType releaseType = ReleaseType.RELEASE;
 
     /* Collected from Curse API */
 
@@ -317,11 +319,7 @@ public class Updater {
     public ReleaseType getLatestType() {
         this.waitForThread();
         if (this.versionType != null) {
-            for (ReleaseType type : ReleaseType.values()) {
-                if (this.versionType.equalsIgnoreCase(type.name())) {
-                    return type;
-                }
-            }
+            return getReleaseType(this.versionType);
         }
         return null;
     }
@@ -375,7 +373,7 @@ public class Updater {
      *
      * @param file the name of the file to save it as.
      */
-    private void saveFile(String file) {
+    private void saveFile(String _file) {
         final File folder = this.updateFolder;
 
         deleteOldFiles();
@@ -384,7 +382,7 @@ public class Updater {
         }
         downloadFile();
 
-        final File dFile = new File(folder.getAbsolutePath(), file);
+        final File dFile = new File(folder.getAbsolutePath(), _file);
         if (dFile.getName().endsWith(".zip")) {
             this.unzip(dFile.getAbsolutePath());
         }
@@ -590,8 +588,8 @@ public class Updater {
      */
     private boolean pluginExists(String name) {
         File[] plugins = listFilesOrError(new File("plugins"));
-        for (final File file : plugins) {
-            if (file.getName().equals(name)) {
+        for (final File _file : plugins) {
+            if (_file.getName().equals(name)) {
                 return true;
             }
         }
@@ -692,7 +690,11 @@ public class Updater {
             final BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             final String response = reader.readLine();
 
-            final JSONArray array = (JSONArray) JSONValue.parse(response);
+            JSONArray array = (JSONArray) JSONValue.parse(response);
+            array = (JSONArray) array.stream().filter(release -> {
+                String _releaseType = (String) ((JSONObject) release).get(Updater.TYPE_VALUE);
+                return getReleaseType(_releaseType) == this.releaseType;
+            }).collect(Collectors.toList());
 
             if (array.isEmpty()) {
                 this.plugin.getLogger().warning("The updater could not find any files for the project id " + this.id);
@@ -724,6 +726,15 @@ public class Updater {
         }
     }
 
+    private ReleaseType getReleaseType(String s) {
+        for (ReleaseType _releaseType : ReleaseType.values()) {
+            if (s.equalsIgnoreCase(_releaseType.name())) {
+                return _releaseType;
+            }
+        }
+        return null;
+    }
+
     /**
      * Perform a file operation and log any errors if it fails.
      *
@@ -743,9 +754,8 @@ public class Updater {
         if (contents == null) {
             this.plugin.getLogger().severe("The updater could not access files at: " + this.updateFolder.getAbsolutePath());
             return new File[0];
-        } else {
-            return contents;
         }
+        return contents;
     }
 
     /**
