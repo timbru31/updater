@@ -13,6 +13,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.security.MessageDigest;
 import java.util.Enumeration;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
@@ -674,6 +675,7 @@ public class Updater {
      *
      * @return true if successful.
      */
+    @SuppressWarnings("unchecked")
     private boolean read() {
         try {
             final URLConnection conn = this.url.openConnection();
@@ -690,19 +692,22 @@ public class Updater {
             final BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             final String response = reader.readLine();
 
-            JSONArray array = (JSONArray) JSONValue.parse(response);
-            array = (JSONArray) array.stream().filter(release -> {
+            JSONArray releases = (JSONArray) JSONValue.parse(response);
+            JSONArray filteredReleases = new JSONArray();
+            for (Object release : releases) {
                 String _releaseType = (String) ((JSONObject) release).get(Updater.TYPE_VALUE);
-                return getReleaseType(_releaseType) == this.releaseType;
-            }).collect(Collectors.toList());
+                if (getReleaseType(_releaseType) == this.releaseType) {
+                    filteredReleases.add(release);
+                }
+            }
 
-            if (array.isEmpty()) {
+            if (filteredReleases.isEmpty()) {
                 this.plugin.getLogger().warning("The updater could not find any files for the project id " + this.id);
                 this.result = UpdateResult.FAIL_BADID;
                 return false;
             }
 
-            JSONObject latestUpdate = (JSONObject) array.get(array.size() - 1);
+            JSONObject latestUpdate = (JSONObject) filteredReleases.get(filteredReleases.size() - 1);
             this.versionName = (String) latestUpdate.get(Updater.TITLE_VALUE);
             this.versionLink = (String) latestUpdate.get(Updater.LINK_VALUE);
             this.versionType = (String) latestUpdate.get(Updater.TYPE_VALUE);
