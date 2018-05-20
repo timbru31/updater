@@ -10,7 +10,7 @@
 
   <groupId>net.gravitydevelopment.updater</groupId>
   <artifactId>updater</artifactId>
-  <version>3.0.2</version>
+  <version>3.0.3-SNAPSHOT</version>
   <name>Updater</name>
   <url>https://bukkit.org/threads/96681/</url>
   
@@ -40,7 +40,7 @@
     <url>https://github.com/timbru31/updater</url>
     <connection>scm:git:git://github.com/timbru31/updater.git</connection>
     <developerConnection>scm:git:git@github.com:timbru31/updater.git</developerConnection>
-    <tag>updater-3.0.2</tag>
+    <tag>master</tag>
   </scm>
 
   <ciManagement>
