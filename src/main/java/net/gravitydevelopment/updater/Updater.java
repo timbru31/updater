@@ -60,21 +60,17 @@ public class Updater {
     // Path to GET
     private static final String QUERY = "/servermods/files?projectIds=";
     // Slugs will be appended to this to get to the project's RSS feed
-    private static final String HOST = "https://api.curseforge.com";
+    private static final String HOST = "https://servermods.forgesvc.net";
     // User-agent when querying Curse
-    private static final String USER_AGENT = "Updater (by Gravity)";
+    private static final String USER_AGENT = "Updater (by Gravity/timbru31)";
     // Used for locating version numbers in file names
     private static final String DELIMETER = "^v|[\\s_-]v";
     // If the version number contains one of these, don't update.
     private static final String[] NO_UPDATE_TAG = { "-DEV", "-PRE", "-SNAPSHOT" };
     // Used for downloading files
     private static final int BYTE_SIZE = 1024;
-    // Config key for API key
-    private static final String API_KEY_CONFIG_KEY = "api-key";
     // Config key for disabling Updater
     private static final String DISABLE_CONFIG_KEY = "disable";
-    // Default API key value in config
-    private static final String API_KEY_DEFAULT = "PUT_API_KEY_HERE";
     // Default disable value in config
     private static final boolean DISABLE_DEFAULT = false;
 
@@ -94,8 +90,6 @@ public class Updater {
     private final UpdateCallback callback;
     // Project's Curse ID
     private int id = -1;
-    // BukkitDev ServerMods API key
-    private String apiKey = null;
     private ReleaseType releaseType = ReleaseType.RELEASE;
 
     /* Collected from Curse API */
@@ -245,9 +239,8 @@ public class Updater {
         YamlConfiguration config = new YamlConfiguration();
         config.options().header(
                 "This configuration file affects all plugins using the Updater system (version 2+ - http://forums.bukkit.org/threads/96681/ )"
-                        + '\n' + "If you wish to use your API key, read http://wiki.bukkit.org/ServerMods_API and place it below." + '\n'
+                        + '\n'
                         + "Some updating systems will not adhere to the disabled value, but these may be turned off in their plugin's configuration.");
-        config.addDefault(API_KEY_CONFIG_KEY, API_KEY_DEFAULT);
         config.addDefault(DISABLE_CONFIG_KEY, DISABLE_DEFAULT);
 
         if (!updaterFile.exists()) {
@@ -277,13 +270,6 @@ public class Updater {
             this.result = UpdateResult.DISABLED;
             return;
         }
-
-        String key = config.getString(API_KEY_CONFIG_KEY);
-        if (API_KEY_DEFAULT.equalsIgnoreCase(key) || "".equals(key)) {
-            key = null;
-        }
-
-        this.apiKey = key;
 
         try {
             this.url = new URL(Updater.HOST + Updater.QUERY + this.id);
@@ -682,9 +668,6 @@ public class Updater {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
-            if (this.apiKey != null) {
-                conn.addRequestProperty("X-API-Key", this.apiKey);
-            }
             conn.addRequestProperty("User-Agent", Updater.USER_AGENT);
 
             conn.setDoOutput(true);
