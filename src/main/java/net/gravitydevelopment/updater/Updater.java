@@ -13,12 +13,11 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.security.MessageDigest;
 import java.util.Enumeration;
-import java.util.Iterator;
 import java.util.logging.Level;
-import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
@@ -40,7 +39,8 @@ import org.json.simple.JSONValue;
  * If you are unsure about these rules, please read the plugin submission guidelines: http://goo.gl/8iU5l
  *
  * @author Gravity
- * @version 2.4
+ * @author timbru31
+ * @version 3.0.3
  */
 
 public class Updater {
@@ -256,7 +256,7 @@ public class Updater {
             } else {
                 config.load(updaterConfigFile);
             }
-        } catch (final Exception e) {
+        } catch (final IOException | InvalidConfigurationException e) {
             final String message;
             if (createFile) {
                 message = "The updater could not create configuration at " + updaterFile.getAbsolutePath();
@@ -382,14 +382,21 @@ public class Updater {
      * Download a file and save it to the specified folder.
      */
     private void downloadFile() {
-        BufferedInputStream in = null;
-        FileOutputStream fout = null;
+        URL fileUrl = null;
+        int fileLength = 0;
         try {
-            URL fileUrl = followRedirects(this.versionLink);
-            final int fileLength = fileUrl.openConnection().getContentLength();
-            in = new BufferedInputStream(fileUrl.openStream());
-            File updateFile = new File(this.updateFolder, file.getName());
-            fout = new FileOutputStream(updateFile);
+            fileUrl = followRedirects(this.versionLink);
+            fileLength = fileUrl.openConnection().getContentLength();
+        } catch (IOException e) {
+            this.plugin.getLogger().log(Level.SEVERE, null, e);
+        }
+        if (fileUrl == null) {
+            return;
+        }
+
+        File updateFile = new File(this.updateFolder, this.file.getName());
+        try (BufferedInputStream in = new BufferedInputStream(fileUrl.openStream());
+                FileOutputStream fout = new FileOutputStream(updateFile)) {
 
             final byte[] data = new byte[Updater.BYTE_SIZE];
             int count;
@@ -421,21 +428,6 @@ public class Updater {
         } catch (Exception ex) {
             this.plugin.getLogger().log(Level.WARNING, "The auto-updater tried to download a new update, but was unsuccessful.", ex);
             this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
-        } finally {
-            try {
-                if (in != null) {
-                    in.close();
-                }
-            } catch (final IOException ex) {
-                this.plugin.getLogger().log(Level.SEVERE, null, ex);
-            }
-            try {
-                if (fout != null) {
-                    fout.close();
-                }
-            } catch (final IOException ex) {
-                this.plugin.getLogger().log(Level.SEVERE, null, ex);
-            }
         }
     }
 
@@ -453,13 +445,13 @@ public class Updater {
             conn.setRequestProperty("User-Agent", "Mozilla/5.0...");
 
             switch (conn.getResponseCode()) {
-            case HttpURLConnection.HTTP_MOVED_PERM:
-            case HttpURLConnection.HTTP_MOVED_TEMP:
-                redLoc = conn.getHeaderField("Location");
-                base = new URL(location);
-                next = new URL(base, redLoc); // Deal with relative URLs
-                location = next.toExternalForm();
-                continue;
+                case HttpURLConnection.HTTP_MOVED_PERM:
+                case HttpURLConnection.HTTP_MOVED_TEMP:
+                    redLoc = conn.getHeaderField("Location");
+                    base = new URL(location);
+                    next = new URL(base, redLoc); // Deal with relative URLs
+                    location = next.toExternalForm();
+                    continue;
             }
             break;
         }
@@ -482,38 +474,39 @@ public class Updater {
     /**
      * Part of Zip-File-Extractor, modified by Gravity for use with Updater.
      *
-     * @param file the location of the file to extract.
+     * @param location the location of the file to extract.
      */
-    private void unzip(String file) {
-        final File fSourceZip = new File(file);
-        try {
-            final String zipPath = file.substring(0, file.length() - 4);
-            ZipFile zipFile = new ZipFile(fSourceZip);
+    private void unzip(String location) {
+        final File fSourceZip = new File(location);
+        final String zipPath = location.substring(0, location.length() - 4);
+        try (ZipFile zipFile = new ZipFile(fSourceZip)) {
             Enumeration<? extends ZipEntry> e = zipFile.entries();
             while (e.hasMoreElements()) {
                 ZipEntry entry = e.nextElement();
                 File destinationFilePath = new File(zipPath, entry.getName());
                 this.fileIOOrError(destinationFilePath.getParentFile(), destinationFilePath.getParentFile().mkdirs(), true);
                 if (!entry.isDirectory()) {
-                    final BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
-                    int b;
-                    final byte[] buffer = new byte[Updater.BYTE_SIZE];
-                    final FileOutputStream fos = new FileOutputStream(destinationFilePath);
-                    final BufferedOutputStream bos = new BufferedOutputStream(fos, Updater.BYTE_SIZE);
-                    while ((b = bis.read(buffer, 0, Updater.BYTE_SIZE)) != -1) {
-                        bos.write(buffer, 0, b);
-                    }
-                    bos.flush();
-                    bos.close();
-                    bis.close();
-                    final String name = destinationFilePath.getName();
-                    if (name.endsWith(".jar") && this.pluginExists(name)) {
-                        File output = new File(this.updateFolder, name);
-                        this.fileIOOrError(output, destinationFilePath.renameTo(output), true);
+                    try (BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
+                            FileOutputStream fos = new FileOutputStream(destinationFilePath);
+                            BufferedOutputStream bos = new BufferedOutputStream(fos, Updater.BYTE_SIZE);) {
+
+                        int b;
+                        final byte[] buffer = new byte[Updater.BYTE_SIZE];
+
+                        while ((b = bis.read(buffer, 0, Updater.BYTE_SIZE)) != -1) {
+                            bos.write(buffer, 0, b);
+                        }
+                        bos.flush();
+                        final String name = destinationFilePath.getName();
+                        if (name.endsWith(".jar") && this.pluginExists(name)) {
+                            File output = new File(this.updateFolder, name);
+                            this.fileIOOrError(output, destinationFilePath.renameTo(output), true);
+                        }
+                    } catch (IOException innerEx) {
+                        throw innerEx;
                     }
                 }
             }
-            zipFile.close();
 
             // Move any plugin data folders that were included to the right place, Bukkit won't do this for us.
             moveNewZipFiles(zipPath);
@@ -714,9 +707,9 @@ public class Updater {
         }
     }
 
-    private ReleaseType getReleaseType(String s) {
+    private ReleaseType getReleaseType(String release) {
         for (ReleaseType _releaseType : ReleaseType.values()) {
-            if (s.equalsIgnoreCase(_releaseType.name())) {
+            if (release.equalsIgnoreCase(_releaseType.name())) {
                 return _releaseType;
             }
         }
@@ -759,13 +752,16 @@ public class Updater {
     }
 
     private class UpdateRunnable implements Runnable {
+        public UpdateRunnable() {
+        }
+
         @Override
         public void run() {
             runUpdater();
         }
     }
 
-    private void runUpdater() {
+    void runUpdater() {
         if (this.url != null && (this.read() && this.versionCheck())) {
             // Obtain the results of the project's file feed
             if ((this.versionLink != null) && (this.type != UpdateType.NO_DOWNLOAD)) {
@@ -790,7 +786,7 @@ public class Updater {
         }
     }
 
-    private void runCallback() {
+    void runCallback() {
         this.callback.onFinish(this);
     }
 }
