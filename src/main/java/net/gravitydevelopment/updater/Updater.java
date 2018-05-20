@@ -69,8 +69,12 @@ public class Updater {
     private static final String[] NO_UPDATE_TAG = { "-DEV", "-PRE", "-SNAPSHOT" };
     // Used for downloading files
     private static final int BYTE_SIZE = 1024;
+    // Config key for API key
+    private static final String API_KEY_CONFIG_KEY = "api-key";
     // Config key for disabling Updater
     private static final String DISABLE_CONFIG_KEY = "disable";
+    // Default API key value in config
+    private static final String API_KEY_DEFAULT = "PUT_API_KEY_HERE";
     // Default disable value in config
     private static final boolean DISABLE_DEFAULT = false;
 
@@ -90,7 +94,9 @@ public class Updater {
     private final UpdateCallback callback;
     // Project's Curse ID
     private int id = -1;
-    private ReleaseType releaseType = ReleaseType.RELEASE;
+    // BukkitDev ServerMods API key
+    private String apiKey = null;
+    private final ReleaseType releaseType = ReleaseType.RELEASE;
 
     /* Collected from Curse API */
 
@@ -107,7 +113,7 @@ public class Updater {
     // Updater thread
     private Thread thread;
     // Used for determining the outcome of the update process
-    private Updater.UpdateResult result = Updater.UpdateResult.SUCCESS;
+    private Updater.UpdateResult result;
 
     /**
      * Gives the developer the result of the update process. Can be obtained by called {@link #getResult()}
@@ -196,7 +202,7 @@ public class Updater {
      * @param type Specify the type of update this will be. See {@link UpdateType}
      * @param announce True if the program should announce the progress of new updates in console.
      */
-    public Updater(Plugin plugin, int id, File file, UpdateType type, boolean announce) {
+    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final boolean announce) {
         this(plugin, id, file, type, null, announce);
     }
 
@@ -209,7 +215,7 @@ public class Updater {
      * @param type Specify the type of update this will be. See {@link UpdateType}
      * @param callback The callback instance to notify when the Updater has finished
      */
-    public Updater(Plugin plugin, int id, File file, UpdateType type, UpdateCallback callback) {
+    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback) {
         this(plugin, id, file, type, callback, false);
     }
 
@@ -223,7 +229,8 @@ public class Updater {
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
-    public Updater(Plugin plugin, int id, File file, UpdateType type, UpdateCallback callback, boolean announce) {
+    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback,
+            final boolean announce) {
         this.plugin = plugin;
         this.type = type;
         this.announce = announce;
@@ -236,10 +243,10 @@ public class Updater {
         final File updaterFile = new File(pluginFile, "Updater");
         final File updaterConfigFile = new File(updaterFile, "config.yml");
 
-        YamlConfiguration config = new YamlConfiguration();
+        final YamlConfiguration config = new YamlConfiguration();
         config.options().header(
                 "This configuration file affects all plugins using the Updater system (version 2+ - http://forums.bukkit.org/threads/96681/ )"
-                        + '\n'
+                        + '\n' + "If you wish to use your API key, read http://wiki.bukkit.org/ServerMods_API and place it below." + '\n'
                         + "Some updating systems will not adhere to the disabled value, but these may be turned off in their plugin's configuration.");
         config.addDefault(DISABLE_CONFIG_KEY, DISABLE_DEFAULT);
 
@@ -247,7 +254,7 @@ public class Updater {
             this.fileIOOrError(updaterFile, updaterFile.mkdir(), true);
         }
 
-        boolean createFile = !updaterConfigFile.exists();
+        final boolean createFile = !updaterConfigFile.exists();
         try {
             if (createFile) {
                 this.fileIOOrError(updaterConfigFile, updaterConfigFile.createNewFile(), true);
@@ -270,6 +277,13 @@ public class Updater {
             this.result = UpdateResult.DISABLED;
             return;
         }
+
+        String key = config.getString(API_KEY_CONFIG_KEY);
+        if (API_KEY_DEFAULT.equalsIgnoreCase(key) || "".equals(key)) {
+            key = null;
+        }
+
+        this.apiKey = key;
 
         try {
             this.url = new URL(Updater.HOST + Updater.QUERY + this.id);
@@ -360,7 +374,7 @@ public class Updater {
      *
      * @param file the name of the file to save it as.
      */
-    private void saveFile(String _file) {
+    private void saveFile(final String _file) {
         final File folder = this.updateFolder;
 
         deleteOldFiles();
@@ -387,14 +401,14 @@ public class Updater {
         try {
             fileUrl = followRedirects(this.versionLink);
             fileLength = fileUrl.openConnection().getContentLength();
-        } catch (IOException e) {
+        } catch (final IOException e) {
             this.plugin.getLogger().log(Level.SEVERE, null, e);
         }
         if (fileUrl == null) {
             return;
         }
 
-        File updateFile = new File(this.updateFolder, this.file.getName());
+        final File updateFile = new File(this.updateFolder, this.file.getName());
         try (BufferedInputStream in = new BufferedInputStream(fileUrl.openStream());
                 FileOutputStream fout = new FileOutputStream(updateFile)) {
 
@@ -404,7 +418,7 @@ public class Updater {
                 this.plugin.getLogger().info("About to download a new update: " + this.versionName);
             }
             long downloaded = 0;
-            MessageDigest md = MessageDigest.getInstance("MD5");
+            final MessageDigest md = MessageDigest.getInstance("MD5");
             while ((count = in.read(data, 0, Updater.BYTE_SIZE)) != -1) {
                 downloaded += count;
                 fout.write(data, 0, count);
@@ -414,18 +428,18 @@ public class Updater {
                     this.plugin.getLogger().info("Downloading update: " + percent + "% of " + fileLength + " bytes.");
                 }
             }
-            byte[] md5bytes = md.digest();
-            StringBuffer sb = new StringBuffer();
-            for (byte md5byte : md5bytes) {
+            final byte[] md5bytes = md.digest();
+            final StringBuffer sb = new StringBuffer();
+            for (final byte md5byte : md5bytes) {
                 sb.append(Integer.toString((md5byte & 0xff) + 0x100, 16).substring(1));
             }
-            String md5 = sb.toString();
+            final String md5 = sb.toString();
             if (!md5.equals(this.versionMD5)) {
                 this.plugin.getLogger().warning("Downloaded file did not match the remote file!");
                 this.fileIOOrError(updateFile, updateFile.delete(), false);
                 this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
             }
-        } catch (Exception ex) {
+        } catch (final Exception ex) {
             this.plugin.getLogger().log(Level.WARNING, "The auto-updater tried to download a new update, but was unsuccessful.", ex);
             this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
         }
@@ -452,6 +466,8 @@ public class Updater {
                     next = new URL(base, redLoc); // Deal with relative URLs
                     location = next.toExternalForm();
                     continue;
+                default:
+                    break;
             }
             break;
         }
@@ -463,7 +479,7 @@ public class Updater {
      */
     private void deleteOldFiles() {
         // Just a quick check to make sure we didn't leave any files from last time...
-        File[] list = listFilesOrError(this.updateFolder);
+        final File[] list = listFilesOrError(this.updateFolder);
         for (final File xFile : list) {
             if (xFile.getName().endsWith(".zip")) {
                 this.fileIOOrError(xFile, xFile.mkdir(), true);
@@ -476,14 +492,14 @@ public class Updater {
      *
      * @param location the location of the file to extract.
      */
-    private void unzip(String location) {
+    private void unzip(final String location) {
         final File fSourceZip = new File(location);
         final String zipPath = location.substring(0, location.length() - 4);
         try (ZipFile zipFile = new ZipFile(fSourceZip)) {
-            Enumeration<? extends ZipEntry> e = zipFile.entries();
+            final Enumeration<? extends ZipEntry> e = zipFile.entries();
             while (e.hasMoreElements()) {
-                ZipEntry entry = e.nextElement();
-                File destinationFilePath = new File(zipPath, entry.getName());
+                final ZipEntry entry = e.nextElement();
+                final File destinationFilePath = new File(zipPath, entry.getName());
                 this.fileIOOrError(destinationFilePath.getParentFile(), destinationFilePath.getParentFile().mkdirs(), true);
                 if (!entry.isDirectory()) {
                     try (BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
@@ -499,10 +515,10 @@ public class Updater {
                         bos.flush();
                         final String name = destinationFilePath.getName();
                         if (name.endsWith(".jar") && this.pluginExists(name)) {
-                            File output = new File(this.updateFolder, name);
+                            final File output = new File(this.updateFolder, name);
                             this.fileIOOrError(output, destinationFilePath.renameTo(output), true);
                         }
-                    } catch (IOException innerEx) {
+                    } catch (final IOException innerEx) {
                         throw innerEx;
                     }
                 }
@@ -524,8 +540,8 @@ public class Updater {
      *
      * @param zipPath path of extracted files.
      */
-    private void moveNewZipFiles(String zipPath) {
-        File[] list = listFilesOrError(new File(zipPath));
+    private void moveNewZipFiles(final String zipPath) {
+        final File[] list = listFilesOrError(new File(zipPath));
         for (final File dFile : list) {
             if (dFile.isDirectory() && this.pluginExists(dFile.getName())) {
                 // Current dir
@@ -534,7 +550,7 @@ public class Updater {
                 final File[] dList = listFilesOrError(dFile);
                 // List of existing files in the current dir
                 final File[] oList = listFilesOrError(oFile);
-                for (File cFile : dList) {
+                for (final File cFile : dList) {
                     // Loop through all the files in the new dir
                     boolean found = false;
                     for (final File xFile : oList) {
@@ -546,7 +562,7 @@ public class Updater {
                     }
                     if (!found) {
                         // Move the new file into the current dir
-                        File output = new File(oFile, cFile.getName());
+                        final File output = new File(oFile, cFile.getName());
                         this.fileIOOrError(output, cFile.renameTo(output), true);
                     } else {
                         // This file already exists, so we don't need it anymore.
@@ -556,7 +572,7 @@ public class Updater {
             }
             this.fileIOOrError(dFile, dFile.delete(), false);
         }
-        File zip = new File(zipPath);
+        final File zip = new File(zipPath);
         this.fileIOOrError(zip, zip.delete(), false);
     }
 
@@ -566,8 +582,8 @@ public class Updater {
      * @param name a name to check for inside the plugins folder.
      * @return true if a file inside the plugins folder is named this.
      */
-    private boolean pluginExists(String name) {
-        File[] plugins = listFilesOrError(new File("plugins"));
+    private boolean pluginExists(final String name) {
+        final File[] plugins = listFilesOrError(new File("plugins"));
         for (final File _file : plugins) {
             if (_file.getName().equals(name)) {
                 return true;
@@ -630,7 +646,7 @@ public class Updater {
      * @param remoteVersion the remote version
      * @return true if Updater should consider the remote version an update, false if not.
      */
-    public boolean shouldUpdate(String localVersion, String remoteVersion) {
+    public boolean shouldUpdate(final String localVersion, final String remoteVersion) {
         return !localVersion.equalsIgnoreCase(remoteVersion);
     }
 
@@ -640,7 +656,7 @@ public class Updater {
      * @param version a version number to check for tags in.
      * @return true if updating should be disabled.
      */
-    private boolean hasTag(String version) {
+    private boolean hasTag(final String version) {
         for (final String string : Updater.NO_UPDATE_TAG) {
             if (version.contains(string)) {
                 return true;
@@ -661,6 +677,10 @@ public class Updater {
             conn.setConnectTimeout(5000);
             conn.setReadTimeout(5000);
 
+            if (this.apiKey != null) {
+                conn.addRequestProperty("X-API-Key", this.apiKey);
+            }
+
             conn.addRequestProperty("User-Agent", Updater.USER_AGENT);
 
             conn.setDoOutput(true);
@@ -668,10 +688,10 @@ public class Updater {
             final BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             final String response = reader.readLine();
 
-            JSONArray releases = (JSONArray) JSONValue.parse(response);
-            JSONArray filteredReleases = new JSONArray();
-            for (Object release : releases) {
-                String _releaseType = (String) ((JSONObject) release).get(Updater.TYPE_VALUE);
+            final JSONArray releases = (JSONArray) JSONValue.parse(response);
+            final JSONArray filteredReleases = new JSONArray();
+            for (final Object release : releases) {
+                final String _releaseType = (String) ((JSONObject) release).get(Updater.TYPE_VALUE);
                 if (getReleaseType(_releaseType) == this.releaseType) {
                     filteredReleases.add(release);
                 }
@@ -683,7 +703,7 @@ public class Updater {
                 return false;
             }
 
-            JSONObject latestUpdate = (JSONObject) filteredReleases.get(filteredReleases.size() - 1);
+            final JSONObject latestUpdate = (JSONObject) filteredReleases.get(filteredReleases.size() - 1);
             this.versionName = (String) latestUpdate.get(Updater.TITLE_VALUE);
             this.versionLink = (String) latestUpdate.get(Updater.LINK_VALUE);
             this.versionType = (String) latestUpdate.get(Updater.TYPE_VALUE);
@@ -707,8 +727,8 @@ public class Updater {
         }
     }
 
-    private ReleaseType getReleaseType(String release) {
-        for (ReleaseType _releaseType : ReleaseType.values()) {
+    private ReleaseType getReleaseType(final String release) {
+        for (final ReleaseType _releaseType : ReleaseType.values()) {
             if (release.equalsIgnoreCase(_releaseType.name())) {
                 return _releaseType;
             }
@@ -723,15 +743,15 @@ public class Updater {
      * @param result result of file operation.
      * @param create true if a file is being created, false if deleted.
      */
-    private void fileIOOrError(File file, boolean result, boolean create) {
+    private void fileIOOrError(final File file, final boolean result, final boolean create) {
         if (!result) {
             this.plugin.getLogger()
                     .severe("The updater could not " + (create ? "create" : "delete") + " file at: " + file.getAbsolutePath());
         }
     }
 
-    private File[] listFilesOrError(File folder) {
-        File[] contents = folder.listFiles();
+    private File[] listFilesOrError(final File folder) {
+        final File[] contents = folder.listFiles();
         if (contents == null) {
             this.plugin.getLogger().severe("The updater could not access files at: " + this.updateFolder.getAbsolutePath());
             return new File[0];
@@ -762,9 +782,9 @@ public class Updater {
     }
 
     void runUpdater() {
-        if (this.url != null && (this.read() && this.versionCheck())) {
+        if (this.url != null && this.read() && this.versionCheck()) {
             // Obtain the results of the project's file feed
-            if ((this.versionLink != null) && (this.type != UpdateType.NO_DOWNLOAD)) {
+            if (this.versionLink != null && this.type != UpdateType.NO_DOWNLOAD) {
                 String name = this.file.getName();
                 // If it's a zip file, it shouldn't be downloaded as the plugin's name
                 if (this.versionLink.endsWith(".zip")) {
