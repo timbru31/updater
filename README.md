@@ -10,7 +10,7 @@ Thanks a bunch for originally making this!
 
 ## Usage 
 
-#### The old usage guid of gravitylow is worth a read, too! It's available on Bukkit: https://bukkit.org/threads/96681
+#### The old usage guide of gravitylow is worth a read, too! It's available on Bukkit: https://bukkit.org/threads/96681
 
 ### Releases (stable)
 
