@@ -10,7 +10,7 @@
 
   <groupId>net.gravitydevelopment.updater</groupId>
   <artifactId>updater</artifactId>
-  <version>3.0.4-SNAPSHOT</version>
+  <version>4.0.0-SNAPSHOT</version>
   <name>Updater</name>
   <url>https://bukkit.org/threads/96681/</url>
 

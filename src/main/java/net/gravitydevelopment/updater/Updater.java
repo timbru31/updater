@@ -12,6 +12,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.security.MessageDigest;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.zip.ZipEntry;
@@ -21,41 +22,34 @@ import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitRunnable;
-import org.json.simple.JSONArray;
-import org.json.simple.JSONObject;
-import org.json.simple.JSONValue;
+
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+
+import net.gravitydevelopment.updater.api.model.Release;
 
 /**
  * Check for updates on BukkitDev for a given plugin, and download the updates if needed.
  * <p>
- * <b>VERY, VERY IMPORTANT</b>: Because there are no standards for adding auto-update toggles in your plugin's config, this system provides NO CHECK WITH YOUR
- * CONFIG to make sure the user has allowed auto-updating. <br>
- * It is a <b>BUKKIT POLICY</b> that you include a boolean value in your config that prevents the auto-updater from running <b>AT ALL</b>. <br>
+ * <b>VERY, VERY IMPORTANT</b>: Because there are no standards for adding auto-update toggles in your plugin's config, this system provides
+ * NO CHECK WITH YOUR CONFIG to make sure the user has allowed auto-updating. <br>
+ * It is a <b>BUKKIT POLICY</b> that you include a boolean value in your config that prevents the auto-updater from running <b>AT ALL</b>.
+ * <br>
  * If you fail to include this option in your config, your plugin will be <b>REJECTED</b> when you attempt to submit it to dev.bukkit.org.
  * </p>
- * An example of a good configuration option would be something similar to 'auto-update: true' - if this value is set to false you may NOT run the auto-updater.
- * <br>
+ * An example of a good configuration option would be something similar to 'auto-update: true' - if this value is set to false you may NOT
+ * run the auto-updater. <br>
  * If you are unsure about these rules, please read the plugin submission guidelines: http://goo.gl/8iU5l
  *
  * @author Gravity
  * @author timbru31
- * @version 3.0.3
+ * @version 4.0.0
  */
 
 public class Updater {
 
     /* Constants */
 
-    // Remote file's title
-    private static final String TITLE_VALUE = "name";
-    // Remote file's download link
-    private static final String LINK_VALUE = "downloadUrl";
-    // Remote file's release type
-    private static final String TYPE_VALUE = "releaseType";
-    // Remote file's build version
-    private static final String VERSION_VALUE = "gameVersion";
-    // Remote file's md5 sum
-    private static final String MD5_VALUE = "md5";
     // Path to GET
     private static final String QUERY = "/servermods/files?projectIds=";
     // Slugs will be appended to this to get to the project's RSS feed
@@ -228,7 +222,8 @@ public class Updater {
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
-    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback, final boolean announce) {
+    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback,
+            final boolean announce) {
         this.plugin = plugin;
         this.type = type;
         this.announce = announce;
@@ -242,9 +237,9 @@ public class Updater {
         final File updaterConfigFile = new File(updaterFile, "config.yml");
 
         final YamlConfiguration config = new YamlConfiguration();
-        config.options()
-                .header("This configuration file affects all plugins using the Updater system (version 2+ - http://forums.bukkit.org/threads/96681/ )" + '\n'
-                        + "If you wish to use your API key, read http://wiki.bukkit.org/ServerMods_API and place it below." + '\n'
+        config.options().header(
+                "This configuration file affects all plugins using the Updater system (version 2+ - http://forums.bukkit.org/threads/96681/ )"
+                        + '\n' + "If you wish to use your API key, read http://wiki.bukkit.org/ServerMods_API and place it below." + '\n'
                         + "Some updating systems will not adhere to the disabled value, but these may be turned off in their plugin's configuration.");
         config.addDefault(DISABLE_CONFIG_KEY, DISABLE_DEFAULT);
 
@@ -354,8 +349,8 @@ public class Updater {
     }
 
     /**
-     * As the result of Updater output depends on the thread's completion, it is necessary to wait for the thread to finish before allowing anyone to check the
-     * result.
+     * As the result of Updater output depends on the thread's completion, it is necessary to wait for the thread to finish before allowing
+     * anyone to check the result.
      */
     private void waitForThread() {
         if (this.thread != null && this.thread.isAlive()) {
@@ -407,7 +402,8 @@ public class Updater {
         }
 
         final File updateFile = new File(this.updateFolder, this.file.getName());
-        try (BufferedInputStream in = new BufferedInputStream(fileUrl.openStream()); FileOutputStream fout = new FileOutputStream(updateFile)) {
+        try (BufferedInputStream in = new BufferedInputStream(fileUrl.openStream());
+                FileOutputStream fout = new FileOutputStream(updateFile)) {
 
             final byte[] data = new byte[Updater.BYTE_SIZE];
             int count;
@@ -456,15 +452,15 @@ public class Updater {
             conn.setRequestProperty("User-Agent", "Mozilla/5.0...");
 
             switch (conn.getResponseCode()) {
-            case HttpURLConnection.HTTP_MOVED_PERM:
-            case HttpURLConnection.HTTP_MOVED_TEMP:
-                redLoc = conn.getHeaderField("Location");
-                base = new URL(location);
-                next = new URL(base, redLoc); // Deal with relative URLs
-                location = next.toExternalForm();
-                continue;
-            default:
-                break;
+                case HttpURLConnection.HTTP_MOVED_PERM:
+                case HttpURLConnection.HTTP_MOVED_TEMP:
+                    redLoc = conn.getHeaderField("Location");
+                    base = new URL(location);
+                    next = new URL(base, redLoc); // Deal with relative URLs
+                    location = next.toExternalForm();
+                    continue;
+                default:
+                    break;
             }
             break;
         }
@@ -624,18 +620,19 @@ public class Updater {
     /**
      * <b>If you wish to run mathematical versioning checks, edit this method.</b>
      * <p>
-     * With default behavior, Updater will NOT verify that a remote version available on BukkitDev which is not this version is indeed an "update". If a version
-     * is present on BukkitDev that is not the version that is currently running, Updater will assume that it is a newer version. This is because there is no
-     * standard versioning scheme, and creating a calculation that can determine whether a new update is actually an update is sometimes extremely complicated.
+     * With default behavior, Updater will NOT verify that a remote version available on BukkitDev which is not this version is indeed an
+     * "update". If a version is present on BukkitDev that is not the version that is currently running, Updater will assume that it is a
+     * newer version. This is because there is no standard versioning scheme, and creating a calculation that can determine whether a new
+     * update is actually an update is sometimes extremely complicated.
      * </p>
      * <p>
-     * Updater will call this method from {@link #versionCheck()} before deciding whether the remote version is actually an update. If you have a specific
-     * versioning scheme with which a mathematical determination can be reliably made to decide whether one version is higher than another, you may revise this
-     * method, using the local and remote version parameters, to execute the appropriate check.
+     * Updater will call this method from {@link #versionCheck()} before deciding whether the remote version is actually an update. If you
+     * have a specific versioning scheme with which a mathematical determination can be reliably made to decide whether one version is
+     * higher than another, you may revise this method, using the local and remote version parameters, to execute the appropriate check.
      * </p>
      * <p>
-     * Returning a value of <b>false</b> will tell the update process that this is NOT a new version. Without revision, this method will always consider a
-     * remote version at all different from that of the local version a new update.
+     * Returning a value of <b>false</b> will tell the update process that this is NOT a new version. Without revision, this method will
+     * always consider a remote version at all different from that of the local version a new update.
      * </p>
      *
      * @param localVersion the current version
@@ -684,10 +681,12 @@ public class Updater {
             final BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
             final String response = reader.readLine();
 
-            final JSONArray releases = (JSONArray) JSONValue.parse(response);
-            final JSONArray filteredReleases = new JSONArray();
-            for (final Object release : releases) {
-                final String _releaseType = (String) ((JSONObject) release).get(Updater.TYPE_VALUE);
+            final Gson gson = new GsonBuilder().create();
+            final Release[] releases = gson.fromJson(response, Release[].class);
+            final ArrayList<Release> filteredReleases = new ArrayList<>();
+
+            for (final Release release : releases) {
+                final String _releaseType = release.releaseType;
                 if (getReleaseType(_releaseType) == this.releaseType) {
                     filteredReleases.add(release);
                 }
@@ -699,12 +698,12 @@ public class Updater {
                 return false;
             }
 
-            final JSONObject latestUpdate = (JSONObject) filteredReleases.get(filteredReleases.size() - 1);
-            this.versionName = (String) latestUpdate.get(Updater.TITLE_VALUE);
-            this.versionLink = (String) latestUpdate.get(Updater.LINK_VALUE);
-            this.versionType = (String) latestUpdate.get(Updater.TYPE_VALUE);
-            this.versionGameVersion = (String) latestUpdate.get(Updater.VERSION_VALUE);
-            this.versionMD5 = (String) latestUpdate.get(Updater.MD5_VALUE);
+            final Release latestRelease = filteredReleases.get(filteredReleases.size() - 1);
+            this.versionName = latestRelease.name;
+            this.versionLink = latestRelease.downloadUrl;
+            this.versionType = latestRelease.releaseType;
+            this.versionGameVersion = latestRelease.gameVersion;
+            this.versionMD5 = latestRelease.md5;
 
             return true;
         } catch (final IOException e) {
@@ -741,7 +740,8 @@ public class Updater {
      */
     private void fileIOOrError(final File file, final boolean result, final boolean create) {
         if (!result) {
-            this.plugin.getLogger().severe("The updater could not " + (create ? "create" : "delete") + " file at: " + file.getAbsolutePath());
+            this.plugin.getLogger()
+                    .severe("The updater could not " + (create ? "create" : "delete") + " file at: " + file.getAbsolutePath());
         }
     }
 
