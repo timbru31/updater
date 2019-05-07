@@ -11,6 +11,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Enumeration;
@@ -663,8 +664,8 @@ public class Updater {
      *
      * @return true if successful.
      */
-    @SuppressWarnings("unchecked")
     private boolean read() {
+        BufferedReader reader = null;
         try {
             final URLConnection conn = this.url.openConnection();
             conn.setConnectTimeout(5000);
@@ -678,7 +679,7 @@ public class Updater {
 
             conn.setDoOutput(true);
 
-            final BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+            reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8));
             final String response = reader.readLine();
 
             final Gson gson = new GsonBuilder().create();
@@ -719,6 +720,14 @@ public class Updater {
             }
             this.plugin.getLogger().log(Level.SEVERE, null, e);
             return false;
+        } finally {
+            if (reader != null) {
+                try {
+                    reader.close();
+                } catch (final IOException e) {
+                    this.plugin.getLogger().log(Level.SEVERE, null, e);
+                }
+            }
         }
     }
 
