@@ -19,6 +19,8 @@ import java.util.logging.Level;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
+import com.vdurmont.semver4j.Semver;
+import com.vdurmont.semver4j.SemverException;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -366,7 +368,7 @@ public class Updater {
     /**
      * Save an update from dev.bukkit.org into the server's update folder.
      *
-     * @param file the name of the file to save it as.
+     * @param _file the name of the file to save it as.
      */
     private void saveFile(final String _file) {
         final File folder = this.updateFolder;
@@ -641,7 +643,13 @@ public class Updater {
      * @return true if Updater should consider the remote version an update, false if not.
      */
     public boolean shouldUpdate(final String localVersion, final String remoteVersion) {
-        return !localVersion.equalsIgnoreCase(remoteVersion);
+        try {
+            Semver local = new Semver(localVersion, Semver.SemverType.LOOSE);
+            Semver remote = new Semver(remoteVersion, Semver.SemverType.LOOSE);
+            return remote.isGreaterThan(local);
+        } catch (SemverException e) {
+            return !localVersion.equalsIgnoreCase(remoteVersion);
+        }
     }
 
     /**
