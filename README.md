@@ -19,16 +19,16 @@ Add the following repo to your `pom.xml`:
 ```xml
     <repositories>
         <repository>
-            <id>dustplanet-releases</id>
-            <url>https://repo.dustplanet.de/artifactory/libs-release-local</url>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 
    <dependencies>
         <dependency>
-            <groupId>net.gravitydevelopment.updater</groupId>
+            <groupId>com.github.timbru31</groupId>
             <artifactId>updater</artifactId>
-            <version>4.0.0</version>
+            <version>updater-4.0.0</version> <!-- Or other releases -->
         </dependency>
     </dependencies>
 ```
@@ -40,16 +40,16 @@ Add the following repo to your `pom.xml`:
 ```xml
     <repositories>
         <repository>
-            <id>dustplanet-snapshots</id>
-            <url>https://repo.dustplanet.de/artifactory/libs-snapshot-local/</url>
+            <id>jitpack.io</id>
+            <url>https://jitpack.io</url>
         </repository>
     </repositories>
 
    <dependencies>
         <dependency>
-            <groupId>net.gravitydevelopment.updater</groupId>
+            <groupId>com.github.timbru31</groupId>
             <artifactId>updater</artifactId>
-            <version>4.0.1-SNAPSHOT</version>
+            <version>master-SNAPSHOT</version>
         </dependency>
     </dependencies>
 ```
