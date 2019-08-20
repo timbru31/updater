@@ -53,6 +53,30 @@ class UpdaterSucessTest {
     }
 
     @Test
+    @DisplayName("should not download a lower version (NO_UPDATE)")
+    public void shouldIgnoreLowerVersion(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
+        hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(
+            success("[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"release\"}]", "application/json"))));
+
+        final File pluginFolder = temporaryFolder.createDirectory("ExamplePlugin");
+
+        final Plugin mockedPlugin = mock(Plugin.class);
+        final Server mockedServer = mock(Server.class);
+        final Logger mockedLogger = Logger.getLogger("UpdaterTest");
+        final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
+        when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
+        when(mockedPlugin.getServer()).thenReturn(mockedServer);
+        when(mockedPlugin.getDataFolder()).thenReturn(pluginFolder);
+        when(mockedDescription.getVersion()).thenReturn("2.0");
+        when(mockedPlugin.getDescription()).thenReturn(mockedDescription);
+
+        final Updater updater = new Updater(mockedPlugin, 123, null, UpdateType.NO_DOWNLOAD, false);
+        final UpdateResult updateResult = updater.getResult();
+
+        assertEquals(UpdateResult.NO_UPDATE, updateResult);
+    }
+
+    @Test
     @DisplayName("should not download the a wrong release type (FAIL_BADID)")
     public void shouldNotDownloadAWrongReleaseType(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
         hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(
