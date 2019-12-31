@@ -2,9 +2,9 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>com.github.timbru31</groupId>
-    <artifactId>bukkit-plugin-parent-pom</artifactId>
-    <version>bukkit-plugin-5.5.1</version>
+    <groupId>de.dustplanet</groupId>
+    <artifactId>bukkit-plugin</artifactId>
+    <version>5.5.0</version>
     <relativePath />
   </parent>
 
@@ -33,10 +33,6 @@
     <repository>
       <id>parent</id>
       <url>https://repo.dustplanet.de/artifactory/bukkit-plugins/</url>
-    </repository>
-    <repository>
-      <id>jitpack.io</id>
-      <url>https://jitpack.io</url>
     </repository>
   </repositories>
 
