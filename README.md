@@ -28,7 +28,7 @@ Add the following repo to your `pom.xml`:
         <dependency>
             <groupId>net.gravitydevelopment.updater</groupId>
             <artifactId>updater</artifactId>
-            <version>4.0.0</version>
+            <version>4.1.1</version>
         </dependency>
     </dependencies>
 ```
@@ -49,7 +49,7 @@ Add the following repo to your `pom.xml`:
         <dependency>
             <groupId>net.gravitydevelopment.updater</groupId>
             <artifactId>updater</artifactId>
-            <version>4.0.1-SNAPSHOT</version>
+            <version>4.1.2-SNAPSHOT</version>
         </dependency>
     </dependencies>
 ```
