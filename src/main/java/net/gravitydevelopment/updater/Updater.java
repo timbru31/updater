@@ -19,8 +19,6 @@ import java.util.logging.Level;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import com.vdurmont.semver4j.Semver;
-import com.vdurmont.semver4j.SemverException;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.Plugin;
@@ -28,6 +26,8 @@ import org.bukkit.scheduler.BukkitRunnable;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.vdurmont.semver4j.Semver;
+import com.vdurmont.semver4j.SemverException;
 
 import net.gravitydevelopment.updater.api.model.Release;
 
@@ -399,6 +399,7 @@ public class Updater {
             fileLength = fileUrl.openConnection().getContentLength();
         } catch (final IOException e) {
             this.plugin.getLogger().log(Level.SEVERE, null, e);
+            this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
         }
         if (fileUrl == null) {
             return;
@@ -644,10 +645,10 @@ public class Updater {
      */
     public boolean shouldUpdate(final String localVersion, final String remoteVersion) {
         try {
-            Semver local = new Semver(localVersion, Semver.SemverType.LOOSE);
-            Semver remote = new Semver(remoteVersion, Semver.SemverType.LOOSE);
+            final Semver local = new Semver(localVersion, Semver.SemverType.LOOSE);
+            final Semver remote = new Semver(remoteVersion, Semver.SemverType.LOOSE);
             return remote.isGreaterThan(local);
-        } catch (SemverException e) {
+        } catch (final SemverException e) {
             return !localVersion.equalsIgnoreCase(remoteVersion);
         }
     }
