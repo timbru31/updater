@@ -98,7 +98,7 @@ public class Updater {
     private int id = -1;
     // BukkitDev ServerMods API key
     private String apiKey = null;
-    private final ReleaseType releaseType = ReleaseType.RELEASE;
+    private final ReleaseType releaseType;
 
     /* Collected from Curse API */
 
@@ -231,9 +231,26 @@ public class Updater {
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
-    @SuppressFBWarnings("PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS")
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback,
             final boolean announce) {
+        this(plugin, id, file, type, callback, announce, ReleaseType.RELEASE);
+
+    }
+
+    /**
+     * Initialize the updater with the provided callback and Release Type.
+     *
+     * @param plugin The plugin that is checking for an update.
+     * @param id The dev.bukkit.org id of the project.
+     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type Specify the type of update this will be. See {@link UpdateType}
+     * @param callback The callback instance to notify when the Updater has finished
+     * @param announce True if the program should announce the progress of new updates in console.
+     * @param releaseType The desired release type to download (alpha, beta, release)
+     */
+    @SuppressFBWarnings("PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS")
+    public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback,
+            final boolean announce, final ReleaseType releaseType) {
         this.plugin = plugin;
         this.type = type;
         this.announce = announce;
@@ -241,6 +258,7 @@ public class Updater {
         this.id = id;
         this.updateFolder = this.plugin.getServer().getUpdateFolderFile();
         this.callback = callback;
+        this.releaseType = releaseType;
 
         final File pluginFile = this.plugin.getDataFolder().getParentFile();
         final File updaterFile = new File(pluginFile, "Updater");
