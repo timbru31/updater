@@ -4,20 +4,23 @@ import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
+
+import javax.annotation.Nullable;
 
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -29,6 +32,7 @@ import com.google.gson.GsonBuilder;
 import com.vdurmont.semver4j.Semver;
 import com.vdurmont.semver4j.SemverException;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import net.gravitydevelopment.updater.api.model.Release;
 
 /**
@@ -48,7 +52,7 @@ import net.gravitydevelopment.updater.api.model.Release;
  * @author timbru31
  * @version 4.0.0
  */
-
+@SuppressFBWarnings(value = "CD_CIRCULAR_DEPENDENCY", justification = "False positive")
 public class Updater {
 
     /* Constants */
@@ -72,7 +76,9 @@ public class Updater {
     // Default API key value in config
     private static final String API_KEY_DEFAULT = "PUT_API_KEY_HERE";
     // Default disable value in config
-    private static final boolean DISABLE_DEFAULT = false;
+    private static final Boolean DISABLE_DEFAULT = Boolean.FALSE;
+    // Timeout for Threads in milliseconds
+    private static final long THREAD_TIMEOUT = 1000L;
 
     /* User-provided variables */
 
@@ -225,6 +231,7 @@ public class Updater {
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
+    @SuppressFBWarnings("PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS")
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback,
             final boolean announce) {
         this.plugin = plugin;
@@ -266,7 +273,7 @@ public class Updater {
             } else {
                 message = "The updater could not load configuration at " + updaterFile.getAbsolutePath();
             }
-            this.plugin.getLogger().log(Level.SEVERE, message, e);
+            this.plugin.getLogger().log(Level.SEVERE, message.replaceAll("[\r\n]", ""), e);
         }
 
         if (config.getBoolean(DISABLE_CONFIG_KEY)) {
@@ -313,6 +320,7 @@ public class Updater {
      * @return latest version's release type.
      * @see ReleaseType
      */
+    @Nullable
     public ReleaseType getLatestType() {
         this.waitForThread();
         if (this.versionType != null) {
@@ -358,7 +366,7 @@ public class Updater {
     private void waitForThread() {
         if (this.thread != null && this.thread.isAlive()) {
             try {
-                this.thread.join();
+                this.thread.join(THREAD_TIMEOUT);
             } catch (final InterruptedException e) {
                 this.plugin.getLogger().log(Level.SEVERE, null, e);
             }
@@ -391,6 +399,8 @@ public class Updater {
     /**
      * Download a file and save it to the specified folder.
      */
+    @SuppressFBWarnings(value = { "WEAK_MESSAGE_DIGEST_MD5",
+            "UAC_UNNECESSARY_API_CONVERSION_FILE_TO_PATH" }, justification = "CurseForge does not offer a more secure hashing algorithm to compare to and false positive")
     private void downloadFile() {
         URL fileUrl = null;
         int fileLength = 0;
@@ -407,12 +417,12 @@ public class Updater {
 
         final File updateFile = new File(this.updateFolder, this.file.getName());
         try (BufferedInputStream in = new BufferedInputStream(fileUrl.openStream());
-                FileOutputStream fout = new FileOutputStream(updateFile)) {
+                OutputStream fout = Files.newOutputStream(updateFile.toPath())) {
 
             final byte[] data = new byte[Updater.BYTE_SIZE];
             int count;
             if (this.announce) {
-                this.plugin.getLogger().info("About to download a new update: " + this.versionName);
+                this.plugin.getLogger().info("About to download a new update: " + this.versionName.replaceAll("[\r\n]", ""));
             }
             long downloaded = 0;
             final MessageDigest md = MessageDigest.getInstance("MD5");
@@ -426,7 +436,7 @@ public class Updater {
                 }
             }
             final byte[] md5bytes = md.digest();
-            final StringBuffer sb = new StringBuffer();
+            final StringBuilder sb = new StringBuilder();
             for (final byte md5byte : md5bytes) {
                 sb.append(Integer.toString((md5byte & 0xff) + 0x100, 16).substring(1));
             }
@@ -442,6 +452,8 @@ public class Updater {
         }
     }
 
+    @SuppressWarnings("static-method")
+    @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
     private URL followRedirects(String location) throws IOException {
         URL resourceUrl, base, next;
         HttpURLConnection conn;
@@ -489,6 +501,8 @@ public class Updater {
      *
      * @param location the location of the file to extract.
      */
+    @SuppressFBWarnings(value = { "UAC_UNNECESSARY_API_CONVERSION_FILE_TO_PATH",
+            "PRMC_POSSIBLY_REDUNDANT_METHOD_CALLS" }, justification = "False positive")
     private void unzip(final String location) {
         final File fSourceZip = new File(location);
         final String zipPath = location.substring(0, location.length() - 4);
@@ -500,7 +514,7 @@ public class Updater {
                 this.fileIOOrError(destinationFilePath.getParentFile(), destinationFilePath.getParentFile().mkdirs(), true);
                 if (!entry.isDirectory()) {
                     try (BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
-                            FileOutputStream fos = new FileOutputStream(destinationFilePath);
+                            OutputStream fos = Files.newOutputStream(destinationFilePath.toPath());
                             BufferedOutputStream bos = new BufferedOutputStream(fos, Updater.BYTE_SIZE);) {
 
                         int b;
@@ -594,6 +608,7 @@ public class Updater {
      *
      * @return true if the version was located and is not the same as the remote's newest.
      */
+    @SuppressFBWarnings("STT_STRING_PARSING_A_FIELD")
     private boolean versionCheck() {
         final String title = this.versionName;
         if (this.type != UpdateType.NO_VERSION_CHECK) {
@@ -611,7 +626,8 @@ public class Updater {
                 // The file's name did not contain the string 'vVersion'
                 final String authorInfo = this.plugin.getDescription().getAuthors().isEmpty() ? ""
                         : " (" + this.plugin.getDescription().getAuthors().get(0) + ")";
-                this.plugin.getLogger().warning("The author of this plugin" + authorInfo + " has misconfigured their Auto Update system");
+                this.plugin.getLogger().warning(
+                        "The author of this plugin" + authorInfo.replaceAll("[\r\n]", "") + " has misconfigured their Auto Update system");
                 this.plugin.getLogger().warning("File versions should follow the format 'PluginName vVERSION'");
                 this.plugin.getLogger().warning("Please notify the author of this error.");
                 this.result = Updater.UpdateResult.FAIL_NOVERSION;
@@ -643,12 +659,13 @@ public class Updater {
      * @param remoteVersion the remote version
      * @return true if Updater should consider the remote version an update, false if not.
      */
+    @SuppressWarnings("static-method")
     public boolean shouldUpdate(final String localVersion, final String remoteVersion) {
         try {
             final Semver local = new Semver(localVersion, Semver.SemverType.LOOSE);
             final Semver remote = new Semver(remoteVersion, Semver.SemverType.LOOSE);
             return remote.isGreaterThan(local);
-        } catch (final SemverException e) {
+        } catch (@SuppressWarnings("unused") final SemverException e) {
             return !localVersion.equalsIgnoreCase(remoteVersion);
         }
     }
@@ -659,6 +676,7 @@ public class Updater {
      * @param version a version number to check for tags in.
      * @return true if updating should be disabled.
      */
+    @SuppressWarnings("static-method")
     private boolean hasTag(final String version) {
         for (final String string : Updater.NO_UPDATE_TAG) {
             if (version.contains(string)) {
@@ -673,6 +691,7 @@ public class Updater {
      *
      * @return true if successful.
      */
+    @SuppressFBWarnings(value = "UTWR_USE_TRY_WITH_RESOURCES", justification = "False positive")
     private boolean read() {
         BufferedReader reader = null;
         try {
@@ -740,6 +759,8 @@ public class Updater {
         }
     }
 
+    @SuppressWarnings("static-method")
+    @Nullable
     private ReleaseType getReleaseType(final String release) {
         for (final ReleaseType _releaseType : ReleaseType.values()) {
             if (_releaseType.name().equalsIgnoreCase(release)) {
@@ -752,21 +773,23 @@ public class Updater {
     /**
      * Perform a file operation and log any errors if it fails.
      *
-     * @param file file operation is performed on.
-     * @param result result of file operation.
+     * @param fileOperatedOn file operation is performed on.
+     * @param operationResult result of file operation.
      * @param create true if a file is being created, false if deleted.
      */
-    private void fileIOOrError(final File file, final boolean result, final boolean create) {
-        if (!result) {
-            this.plugin.getLogger()
-                    .severe("The updater could not " + (create ? "create" : "delete") + " file at: " + file.getAbsolutePath());
+    private void fileIOOrError(final File fileOperatedOn, final boolean operationResult, final boolean create) {
+        if (!operationResult) {
+            this.plugin.getLogger().severe("The updater could not " + (create ? "create" : "delete") + " file at: "
+                    + fileOperatedOn.getAbsolutePath().replaceAll("[\r\n]", ""));
         }
     }
 
+    @SuppressFBWarnings("BL_BURYING_LOGIC")
     private File[] listFilesOrError(final File folder) {
         final File[] contents = folder.listFiles();
         if (contents == null) {
-            this.plugin.getLogger().severe("The updater could not access files at: " + this.updateFolder.getAbsolutePath());
+            this.plugin.getLogger()
+                    .severe("The updater could not access files at: " + this.updateFolder.getAbsolutePath().replaceAll("[\r\n]", ""));
             return new File[0];
         }
         return contents;
@@ -794,14 +817,15 @@ public class Updater {
         }
     }
 
-    void runUpdater() {
+    @SuppressFBWarnings(value = "STT_STRING_PARSING_A_FIELD")
+    final void runUpdater() {
         if (this.url != null && this.read() && this.versionCheck()) {
             // Obtain the results of the project's file feed
             if (this.versionLink != null && this.type != UpdateType.NO_DOWNLOAD) {
                 String name = this.file.getName();
                 // If it's a zip file, it shouldn't be downloaded as the plugin's name
                 if (this.versionLink.endsWith(".zip")) {
-                    name = this.versionLink.substring(this.versionLink.lastIndexOf("/") + 1);
+                    name = this.versionLink.substring(this.versionLink.lastIndexOf('/') + 1);
                 }
                 this.saveFile(name);
             } else {
