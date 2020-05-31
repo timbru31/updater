@@ -7,6 +7,7 @@ dependency-reduced-pom.xml
 .classpath
 .project
 .settings/
+.checkstyle
 
 # macOS
 .DS_Store

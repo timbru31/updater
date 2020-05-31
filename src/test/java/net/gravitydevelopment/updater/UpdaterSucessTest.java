@@ -26,19 +26,27 @@ import net.gravitydevelopment.updater.Updater.UpdateType;
 
 @ExtendWith(TemporaryFolderExtension.class)
 @ExtendWith(HoverflyExtension.class)
+@SuppressWarnings("checkstyle:MissingCtor")
 class UpdaterSucessTest {
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String LOGGER_NAME = "UpdaterTest";
+    private static final String PLUGIN_NAME = "ExamplePlugin";
+    private static final String CURSEFORGE_EXAMPLE_PROJECT_RESPONSE = "[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"release\"}]";
+    private static final String CURSEFORGE_API_PATH = "/servermods/files";
+    private static final String CURSEFORGE_API_URL = "https://servermods.forgesvc.net";
 
+    @SuppressWarnings("static-method")
     @Test
     @DisplayName("should not download the same version (NO_UPDATE)")
     public void shouldIgnoreTheSameVersion(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
-        hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(
-                success("[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"release\"}]", "application/json"))));
+        hoverfly.simulate(dsl(service(CURSEFORGE_API_URL).get(CURSEFORGE_API_PATH).anyQueryParams()
+                .willReturn(success(CURSEFORGE_EXAMPLE_PROJECT_RESPONSE, APPLICATION_JSON))));
 
-        final File pluginFolder = temporaryFolder.createDirectory("ExamplePlugin");
+        final File pluginFolder = temporaryFolder.createDirectory(PLUGIN_NAME);
 
         final Plugin mockedPlugin = mock(Plugin.class);
         final Server mockedServer = mock(Server.class);
-        final Logger mockedLogger = Logger.getLogger("UpdaterTest");
+        final Logger mockedLogger = Logger.getLogger(LOGGER_NAME);
         final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
         when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
         when(mockedPlugin.getServer()).thenReturn(mockedServer);
@@ -52,17 +60,18 @@ class UpdaterSucessTest {
         assertEquals(UpdateResult.NO_UPDATE, updateResult);
     }
 
+    @SuppressWarnings("static-method")
     @Test
     @DisplayName("should not download a lower version (NO_UPDATE)")
     public void shouldIgnoreLowerVersion(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
-        hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(
-            success("[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"release\"}]", "application/json"))));
+        hoverfly.simulate(dsl(service(CURSEFORGE_API_URL).get(CURSEFORGE_API_PATH).anyQueryParams()
+                .willReturn(success(CURSEFORGE_EXAMPLE_PROJECT_RESPONSE, APPLICATION_JSON))));
 
-        final File pluginFolder = temporaryFolder.createDirectory("ExamplePlugin");
+        final File pluginFolder = temporaryFolder.createDirectory(PLUGIN_NAME);
 
         final Plugin mockedPlugin = mock(Plugin.class);
         final Server mockedServer = mock(Server.class);
-        final Logger mockedLogger = Logger.getLogger("UpdaterTest");
+        final Logger mockedLogger = Logger.getLogger(LOGGER_NAME);
         final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
         when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
         when(mockedPlugin.getServer()).thenReturn(mockedServer);
@@ -76,17 +85,18 @@ class UpdaterSucessTest {
         assertEquals(UpdateResult.NO_UPDATE, updateResult);
     }
 
+    @SuppressWarnings("static-method")
     @Test
     @DisplayName("should not download the a wrong release type (FAIL_BADID)")
     public void shouldNotDownloadAWrongReleaseType(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
-        hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(
-                success("[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"alpha\"}]", "application/json"))));
+        hoverfly.simulate(dsl(service(CURSEFORGE_API_URL).get(CURSEFORGE_API_PATH).anyQueryParams().willReturn(
+                success("[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"alpha\"}]", APPLICATION_JSON))));
 
-        final File pluginFolder = temporaryFolder.createDirectory("ExamplePlugin");
+        final File pluginFolder = temporaryFolder.createDirectory(PLUGIN_NAME);
 
         final Plugin mockedPlugin = mock(Plugin.class);
         final Server mockedServer = mock(Server.class);
-        final Logger mockedLogger = Logger.getLogger("UpdaterTest");
+        final Logger mockedLogger = Logger.getLogger(LOGGER_NAME);
         final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
         when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
         when(mockedPlugin.getServer()).thenReturn(mockedServer);
@@ -100,18 +110,19 @@ class UpdaterSucessTest {
         assertEquals(UpdateResult.FAIL_BADID, updateResult);
     }
 
+    @SuppressWarnings("static-method")
     @Test
     @DisplayName("should download the latest release (UPDATE_AVAILABLE)")
     public void shouldDownloadTheLatestRelease(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
-        hoverfly.simulate(dsl(service("https://servermods.forgesvc.net").get("/servermods/files").anyQueryParams().willReturn(success(
+        hoverfly.simulate(dsl(service(CURSEFORGE_API_URL).get(CURSEFORGE_API_PATH).anyQueryParams().willReturn(success(
                 "[{\"name\":\"SilkSpawners v1.0\",\"projectId\":35890,\"releaseType\":\"release\"}, {\"name\":\"SilkSpawners v2.0\",\"projectId\":35890,\"releaseType\":\"release\"}]",
-                "application/json"))));
+                APPLICATION_JSON))));
 
-        final File pluginFolder = temporaryFolder.createDirectory("ExamplePlugin");
+        final File pluginFolder = temporaryFolder.createDirectory(PLUGIN_NAME);
 
         final Plugin mockedPlugin = mock(Plugin.class);
         final Server mockedServer = mock(Server.class);
-        final Logger mockedLogger = Logger.getLogger("UpdaterTest");
+        final Logger mockedLogger = Logger.getLogger(LOGGER_NAME);
         final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
         when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
         when(mockedPlugin.getServer()).thenReturn(mockedServer);

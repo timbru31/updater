@@ -21,10 +21,12 @@ import net.gravitydevelopment.updater.Updater.UpdateResult;
 import net.gravitydevelopment.updater.Updater.UpdateType;
 
 @ExtendWith(TemporaryFolderExtension.class)
+@SuppressWarnings("checkstyle:MissingCtor")
 class UpdaterDisabledTest {
 
     @Test
     @DisplayName("should return DISABLED when disabled via config file")
+    @SuppressWarnings("static-method")
     public void shouldNotRunIfDisabled(final TemporaryFolder temporaryFolder) throws IOException {
         final File updaterFile = temporaryFolder.createDirectory("Updater");
         final File updaterConfigFile = new File(updaterFile, "config.yml");

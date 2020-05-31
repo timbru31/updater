@@ -50,13 +50,16 @@ import net.gravitydevelopment.updater.api.model.Release;
  *
  * @author Gravity
  * @author timbru31
- * @version 4.0.0
+ * @version 4.2.0
  */
 @SuppressFBWarnings(value = "CD_CIRCULAR_DEPENDENCY", justification = "False positive")
 public class Updater {
-
     /* Constants */
 
+    // File ending
+    private static final String ZIP_ENDING = ".zip";
+    // HTTP Connection timeout
+    private static final int CONNECTION_TIMEOUT = 15000;
     // Path to GET
     private static final String QUERY = "/servermods/files?projectIds=";
     // Slugs will be appended to this to get to the project's RSS feed
@@ -97,7 +100,7 @@ public class Updater {
     // Project's Curse ID
     private int id = -1;
     // BukkitDev ServerMods API key
-    private String apiKey = null;
+    private String apiKey;
     private final ReleaseType releaseType;
 
     /* Collected from Curse API */
@@ -314,7 +317,7 @@ public class Updater {
         }
 
         if (this.result != UpdateResult.FAIL_BADID) {
-            this.thread = new Thread(new UpdateRunnable());
+            this.thread = new Thread(() -> runUpdater());
             this.thread.start();
         } else {
             runUpdater();
@@ -394,9 +397,9 @@ public class Updater {
     /**
      * Save an update from dev.bukkit.org into the server's update folder.
      *
-     * @param _file the name of the file to save it as.
+     * @param fileToSave the name of the file to save it as.
      */
-    private void saveFile(final String _file) {
+    private void saveFile(final String fileToSave) {
         final File folder = this.updateFolder;
 
         deleteOldFiles();
@@ -405,8 +408,8 @@ public class Updater {
         }
         downloadFile();
 
-        final File dFile = new File(folder.getAbsolutePath(), _file);
-        if (dFile.getName().endsWith(".zip")) {
+        final File dFile = new File(folder.getAbsolutePath(), fileToSave);
+        if (dFile.getName().endsWith(ZIP_ENDING)) {
             this.unzip(dFile.getAbsolutePath());
         }
         if (this.announce) {
@@ -472,26 +475,30 @@ public class Updater {
 
     @SuppressWarnings("static-method")
     @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
-    private URL followRedirects(String location) throws IOException {
-        URL resourceUrl, base, next;
+    private URL followRedirects(final String location) throws IOException {
+        URL resourceUrl;
+        URL base;
+        URL next;
         HttpURLConnection conn;
         String redLoc;
         while (true) {
             resourceUrl = new URL(location);
             conn = (HttpURLConnection) resourceUrl.openConnection();
 
-            conn.setConnectTimeout(15000);
-            conn.setReadTimeout(15000);
+            conn.setConnectTimeout(CONNECTION_TIMEOUT);
+            conn.setReadTimeout(CONNECTION_TIMEOUT);
             conn.setInstanceFollowRedirects(false);
             conn.setRequestProperty("User-Agent", "Mozilla/5.0...");
 
+            String redirectedLocation = location;
             switch (conn.getResponseCode()) {
                 case HttpURLConnection.HTTP_MOVED_PERM:
                 case HttpURLConnection.HTTP_MOVED_TEMP:
                     redLoc = conn.getHeaderField("Location");
-                    base = new URL(location);
-                    next = new URL(base, redLoc); // Deal with relative URLs
-                    location = next.toExternalForm();
+                    base = new URL(redirectedLocation);
+                    // Deal with relative URLs
+                    next = new URL(base, redLoc);
+                    redirectedLocation = next.toExternalForm();
                     continue;
                 default:
                     break;
@@ -508,7 +515,7 @@ public class Updater {
         // Just a quick check to make sure we didn't leave any files from last time...
         final File[] list = listFilesOrError(this.updateFolder);
         for (final File xFile : list) {
-            if (xFile.getName().endsWith(".zip")) {
+            if (xFile.getName().endsWith(ZIP_ENDING)) {
                 this.fileIOOrError(xFile, xFile.mkdir(), true);
             }
         }
@@ -533,8 +540,7 @@ public class Updater {
                 if (!entry.isDirectory()) {
                     try (BufferedInputStream bis = new BufferedInputStream(zipFile.getInputStream(entry));
                             OutputStream fos = Files.newOutputStream(destinationFilePath.toPath());
-                            BufferedOutputStream bos = new BufferedOutputStream(fos, Updater.BYTE_SIZE);) {
-
+                            BufferedOutputStream bos = new BufferedOutputStream(fos, Updater.BYTE_SIZE)) {
                         int b;
                         final byte[] buffer = new byte[Updater.BYTE_SIZE];
 
@@ -714,8 +720,8 @@ public class Updater {
         BufferedReader reader = null;
         try {
             final URLConnection conn = this.url.openConnection();
-            conn.setConnectTimeout(5000);
-            conn.setReadTimeout(5000);
+            conn.setConnectTimeout(CONNECTION_TIMEOUT);
+            conn.setReadTimeout(CONNECTION_TIMEOUT);
 
             if (this.apiKey != null) {
                 conn.addRequestProperty("X-API-Key", this.apiKey);
@@ -733,7 +739,7 @@ public class Updater {
             final ArrayList<Release> filteredReleases = new ArrayList<>();
 
             for (final Release release : releases) {
-                final String _releaseType = release.releaseType;
+                final String _releaseType = release.getReleaseType();
                 if (getReleaseType(_releaseType) == this.releaseType) {
                     filteredReleases.add(release);
                 }
@@ -746,11 +752,11 @@ public class Updater {
             }
 
             final Release latestRelease = filteredReleases.get(filteredReleases.size() - 1);
-            this.versionName = latestRelease.name;
-            this.versionLink = latestRelease.downloadUrl;
-            this.versionType = latestRelease.releaseType;
-            this.versionGameVersion = latestRelease.gameVersion;
-            this.versionMD5 = latestRelease.md5;
+            this.versionName = latestRelease.getName();
+            this.versionLink = latestRelease.getDownloadUrl();
+            this.versionType = latestRelease.getReleaseType();
+            this.versionGameVersion = latestRelease.getGameVersion();
+            this.versionMD5 = latestRelease.getMd5();
 
             return true;
         } catch (final IOException e) {
@@ -825,14 +831,8 @@ public class Updater {
         void onFinish(Updater updater);
     }
 
-    private class UpdateRunnable implements Runnable {
-        public UpdateRunnable() {
-        }
-
-        @Override
-        public void run() {
-            runUpdater();
-        }
+    void runCallback() {
+        this.callback.onFinish(this);
     }
 
     @SuppressFBWarnings(value = "STT_STRING_PARSING_A_FIELD")
@@ -842,7 +842,7 @@ public class Updater {
             if (this.versionLink != null && this.type != UpdateType.NO_DOWNLOAD) {
                 String name = this.file.getName();
                 // If it's a zip file, it shouldn't be downloaded as the plugin's name
-                if (this.versionLink.endsWith(".zip")) {
+                if (this.versionLink.endsWith(ZIP_ENDING)) {
                     name = this.versionLink.substring(this.versionLink.lastIndexOf('/') + 1);
                 }
                 this.saveFile(name);
@@ -859,9 +859,5 @@ public class Updater {
                 }
             }.runTask(this.plugin);
         }
-    }
-
-    void runCallback() {
-        this.callback.onFinish(this);
     }
 }
