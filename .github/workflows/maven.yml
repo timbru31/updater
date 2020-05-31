@@ -1,4 +1,4 @@
-name: Build the plugin
+name: Run the testsuite
 
 on: [push, pull_request]
 
@@ -21,5 +21,5 @@ jobs:
       run: |
         java -version
         mvn --version
-    - name: Build with Maven
-      run: mvn -DskipTests=true -B -V clean package
+    - name: Run tests and package
+      run: mvn -B clean package
