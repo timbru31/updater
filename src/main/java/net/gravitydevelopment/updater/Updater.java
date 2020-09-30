@@ -59,7 +59,7 @@ public class Updater {
     // File ending
     private static final String ZIP_ENDING = ".zip";
     // HTTP Connection timeout
-    private static final int CONNECTION_TIMEOUT = 15000;
+    private static final int CONNECTION_TIMEOUT = 15_000;
     // Path to GET
     private static final String QUERY = "/servermods/files?projectIds=";
     // Slugs will be appended to this to get to the project's RSS feed
@@ -452,16 +452,16 @@ public class Updater {
                 fout.write(data, 0, count);
                 md.update(data, 0, count);
                 final int percent = (int) ((downloaded * 100) / fileLength);
-                if (this.announce && ((percent % 10) == 0)) {
+                if (this.announce && (percent % 10 == 0)) {
                     this.plugin.getLogger().info("Downloading update: " + percent + "% of " + fileLength + " bytes.");
                 }
             }
             final byte[] md5bytes = md.digest();
-            final StringBuilder sb = new StringBuilder();
+            final StringBuilder stringBuilder = new StringBuilder();
             for (final byte md5byte : md5bytes) {
-                sb.append(Integer.toString((md5byte & 0xff) + 0x100, 16).substring(1));
+                stringBuilder.append(Integer.toString((md5byte & 0xff) + 0x100, 16).substring(1));
             }
-            final String md5 = sb.toString();
+            final String md5 = stringBuilder.toString();
             if (!md5.equals(this.versionMD5)) {
                 this.plugin.getLogger().warning("Downloaded file did not match the remote file!");
                 this.fileIOOrError(updateFile, updateFile.delete(), false);
@@ -473,7 +473,7 @@ public class Updater {
         }
     }
 
-    @SuppressWarnings("static-method")
+    @SuppressWarnings({ "static-method", "PMD.AvoidBranchingStatementAsLastInLoop" })
     @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
     private URL followRedirects(final String location) throws IOException {
         URL resourceUrl;
@@ -488,7 +488,7 @@ public class Updater {
             conn.setConnectTimeout(CONNECTION_TIMEOUT);
             conn.setReadTimeout(CONNECTION_TIMEOUT);
             conn.setInstanceFollowRedirects(false);
-            conn.setRequestProperty("User-Agent", "Mozilla/5.0...");
+            conn.setRequestProperty("User-Agent", Updater.USER_AGENT);
 
             String redirectedLocation = location;
             switch (conn.getResponseCode()) {
@@ -532,9 +532,9 @@ public class Updater {
         final File fSourceZip = new File(location);
         final String zipPath = location.substring(0, location.length() - 4);
         try (ZipFile zipFile = new ZipFile(fSourceZip)) {
-            final Enumeration<? extends ZipEntry> e = zipFile.entries();
-            while (e.hasMoreElements()) {
-                final ZipEntry entry = e.nextElement();
+            final Enumeration<? extends ZipEntry> entries = zipFile.entries();
+            while (entries.hasMoreElements()) {
+                final ZipEntry entry = entries.nextElement();
                 final File destinationFilePath = new File(zipPath, entry.getName());
                 this.fileIOOrError(destinationFilePath.getParentFile(), destinationFilePath.getParentFile().mkdirs(), true);
                 if (!entry.isDirectory()) {
@@ -619,8 +619,8 @@ public class Updater {
      */
     private boolean pluginExists(final String name) {
         final File[] plugins = listFilesOrError(new File("plugins"));
-        for (final File _file : plugins) {
-            if (_file.getName().equals(name)) {
+        for (final File pluginFile : plugins) {
+            if (pluginFile.getName().equals(name)) {
                 return true;
             }
         }
@@ -786,9 +786,9 @@ public class Updater {
     @SuppressWarnings("static-method")
     @Nullable
     private ReleaseType getReleaseType(final String release) {
-        for (final ReleaseType _releaseType : ReleaseType.values()) {
-            if (_releaseType.name().equalsIgnoreCase(release)) {
-                return _releaseType;
+        for (final ReleaseType releaseTypeValue : ReleaseType.values()) {
+            if (releaseTypeValue.name().equalsIgnoreCase(release)) {
+                return releaseTypeValue;
             }
         }
         return null;
