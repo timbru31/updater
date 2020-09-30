@@ -8,6 +8,9 @@ dependency-reduced-pom.xml
 .project
 .settings/
 .checkstyle
+.pmd
+.eclipse-pmd
+.ruleset
 
 # macOS
 .DS_Store
