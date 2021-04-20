@@ -81,7 +81,7 @@ public class Updater {
     // Default disable value in config
     private static final Boolean DISABLE_DEFAULT = Boolean.FALSE;
     // Timeout for Threads in milliseconds
-    private static final long THREAD_TIMEOUT = 1000L;
+    private static final long THREAD_TIMEOUT = 10000L;
 
     /* User-provided variables */
 
@@ -201,10 +201,10 @@ public class Updater {
     /**
      * Initialize the updater.
      *
-     * @param plugin The plugin that is checking for an update.
-     * @param id The dev.bukkit.org id of the project.
-     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin   The plugin that is checking for an update.
+     * @param id       The dev.bukkit.org id of the project.
+     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type     Specify the type of update this will be. See {@link UpdateType}
      * @param announce True if the program should announce the progress of new updates in console.
      */
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final boolean announce) {
@@ -214,10 +214,10 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback.
      *
-     * @param plugin The plugin that is checking for an update.
-     * @param id The dev.bukkit.org id of the project.
-     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin   The plugin that is checking for an update.
+     * @param id       The dev.bukkit.org id of the project.
+     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type     Specify the type of update this will be. See {@link UpdateType}
      * @param callback The callback instance to notify when the Updater has finished
      */
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback) {
@@ -227,10 +227,10 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback.
      *
-     * @param plugin The plugin that is checking for an update.
-     * @param id The dev.bukkit.org id of the project.
-     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin   The plugin that is checking for an update.
+     * @param id       The dev.bukkit.org id of the project.
+     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type     Specify the type of update this will be. See {@link UpdateType}
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
@@ -243,12 +243,12 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback and Release Type.
      *
-     * @param plugin The plugin that is checking for an update.
-     * @param id The dev.bukkit.org id of the project.
-     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type Specify the type of update this will be. See {@link UpdateType}
-     * @param callback The callback instance to notify when the Updater has finished
-     * @param announce True if the program should announce the progress of new updates in console.
+     * @param plugin      The plugin that is checking for an update.
+     * @param id          The dev.bukkit.org id of the project.
+     * @param file        The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type        Specify the type of update this will be. See {@link UpdateType}
+     * @param callback    The callback instance to notify when the Updater has finished
+     * @param announce    True if the program should announce the progress of new updates in console.
      * @param releaseType The desired release type to download (alpha, beta, release)
      */
     @SuppressFBWarnings("PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS")
@@ -330,6 +330,7 @@ public class Updater {
      * @return result of the update process.
      * @see UpdateResult
      */
+    @Nullable
     public Updater.UpdateResult getResult() {
         this.waitForThread();
         return this.result;
@@ -355,6 +356,8 @@ public class Updater {
      *
      * @return latest version's game version.
      */
+
+    @Nullable
     public String getLatestGameVersion() {
         this.waitForThread();
         return this.versionGameVersion;
@@ -365,6 +368,7 @@ public class Updater {
      *
      * @return latest version's name.
      */
+    @Nullable
     public String getLatestName() {
         this.waitForThread();
         return this.versionName;
@@ -375,6 +379,7 @@ public class Updater {
      *
      * @return latest version's file link.
      */
+    @Nullable
     public String getLatestFileLink() {
         this.waitForThread();
         return this.versionLink;
@@ -492,16 +497,16 @@ public class Updater {
 
             String redirectedLocation = location;
             switch (conn.getResponseCode()) {
-                case HttpURLConnection.HTTP_MOVED_PERM:
-                case HttpURLConnection.HTTP_MOVED_TEMP:
-                    redLoc = conn.getHeaderField("Location");
-                    base = new URL(redirectedLocation);
-                    // Deal with relative URLs
-                    next = new URL(base, redLoc);
-                    redirectedLocation = next.toExternalForm();
-                    continue;
-                default:
-                    break;
+            case HttpURLConnection.HTTP_MOVED_PERM:
+            case HttpURLConnection.HTTP_MOVED_TEMP:
+                redLoc = conn.getHeaderField("Location");
+                base = new URL(redirectedLocation);
+                // Deal with relative URLs
+                next = new URL(base, redLoc);
+                redirectedLocation = next.toExternalForm();
+                continue;
+            default:
+                break;
             }
             break;
         }
@@ -679,7 +684,7 @@ public class Updater {
      * always consider a remote version at all different from that of the local version a new update.
      * </p>
      *
-     * @param localVersion the current version
+     * @param localVersion  the current version
      * @param remoteVersion the remote version
      * @return true if Updater should consider the remote version an update, false if not.
      */
@@ -797,9 +802,9 @@ public class Updater {
     /**
      * Perform a file operation and log any errors if it fails.
      *
-     * @param fileOperatedOn file operation is performed on.
+     * @param fileOperatedOn  file operation is performed on.
      * @param operationResult result of file operation.
-     * @param create true if a file is being created, false if deleted.
+     * @param create          true if a file is being created, false if deleted.
      */
     private void fileIOOrError(final File fileOperatedOn, final boolean operationResult, final boolean create) {
         if (!operationResult) {
