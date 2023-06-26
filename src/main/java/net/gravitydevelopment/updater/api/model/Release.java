@@ -1,5 +1,6 @@
 package net.gravitydevelopment.updater.api.model;
 
+import lombok.Builder;
 import lombok.Data;
 
 /**
@@ -8,6 +9,7 @@ import lombok.Data;
  * @author timbru31
  */
 @Data
+@Builder
 @SuppressWarnings("checkstyle:MissingCtor")
 public class Release {
     // Remote file's title
@@ -20,4 +22,10 @@ public class Release {
     private String gameVersion;
     // Remote file's md5 sum
     private String md5;
+    // Remote file's project ID
+    private int projectId;
+    // Remote file's file URL
+    private String fileUrl;
+    // Remote file's release date
+    private String dateReleased;
 }

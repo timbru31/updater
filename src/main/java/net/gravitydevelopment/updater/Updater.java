@@ -50,7 +50,7 @@ import net.gravitydevelopment.updater.api.model.Release;
  *
  * @author Gravity
  * @author timbru31
- * @version 4.2.0
+ * @version 4.2.3
  */
 @SuppressFBWarnings(value = "CD_CIRCULAR_DEPENDENCY", justification = "False positive")
 public class Updater {
@@ -201,10 +201,10 @@ public class Updater {
     /**
      * Initialize the updater.
      *
-     * @param plugin   The plugin that is checking for an update.
-     * @param id       The dev.bukkit.org id of the project.
-     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type     Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin The plugin that is checking for an update.
+     * @param id The dev.bukkit.org id of the project.
+     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type Specify the type of update this will be. See {@link UpdateType}
      * @param announce True if the program should announce the progress of new updates in console.
      */
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final boolean announce) {
@@ -214,10 +214,10 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback.
      *
-     * @param plugin   The plugin that is checking for an update.
-     * @param id       The dev.bukkit.org id of the project.
-     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type     Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin The plugin that is checking for an update.
+     * @param id The dev.bukkit.org id of the project.
+     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type Specify the type of update this will be. See {@link UpdateType}
      * @param callback The callback instance to notify when the Updater has finished
      */
     public Updater(final Plugin plugin, final int id, final File file, final UpdateType type, final UpdateCallback callback) {
@@ -227,10 +227,10 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback.
      *
-     * @param plugin   The plugin that is checking for an update.
-     * @param id       The dev.bukkit.org id of the project.
-     * @param file     The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type     Specify the type of update this will be. See {@link UpdateType}
+     * @param plugin The plugin that is checking for an update.
+     * @param id The dev.bukkit.org id of the project.
+     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type Specify the type of update this will be. See {@link UpdateType}
      * @param callback The callback instance to notify when the Updater has finished
      * @param announce True if the program should announce the progress of new updates in console.
      */
@@ -243,12 +243,12 @@ public class Updater {
     /**
      * Initialize the updater with the provided callback and Release Type.
      *
-     * @param plugin      The plugin that is checking for an update.
-     * @param id          The dev.bukkit.org id of the project.
-     * @param file        The file that the plugin is running from, get this by doing this.getFile() from within your main class.
-     * @param type        Specify the type of update this will be. See {@link UpdateType}
-     * @param callback    The callback instance to notify when the Updater has finished
-     * @param announce    True if the program should announce the progress of new updates in console.
+     * @param plugin The plugin that is checking for an update.
+     * @param id The dev.bukkit.org id of the project.
+     * @param file The file that the plugin is running from, get this by doing this.getFile() from within your main class.
+     * @param type Specify the type of update this will be. See {@link UpdateType}
+     * @param callback The callback instance to notify when the Updater has finished
+     * @param announce True if the program should announce the progress of new updates in console.
      * @param releaseType The desired release type to download (alpha, beta, release)
      */
     @SuppressFBWarnings("PCOA_PARTIALLY_CONSTRUCTED_OBJECT_ACCESS")
@@ -314,14 +314,11 @@ public class Updater {
         } catch (final MalformedURLException e) {
             this.plugin.getLogger().log(Level.SEVERE, "The project ID provided for updating, " + this.id + " is invalid.", e);
             this.result = UpdateResult.FAIL_BADID;
+            return;
         }
 
-        if (this.result != UpdateResult.FAIL_BADID) {
-            this.thread = new Thread(() -> runUpdater());
-            this.thread.start();
-        } else {
-            runUpdater();
-        }
+        this.thread = new Thread(() -> runUpdater());
+        this.thread.start();
     }
 
     /**
@@ -411,14 +408,18 @@ public class Updater {
         if (!folder.exists()) {
             this.fileIOOrError(folder, folder.mkdir(), true);
         }
-        downloadFile();
 
-        final File dFile = new File(folder.getAbsolutePath(), fileToSave);
-        if (dFile.getName().endsWith(ZIP_ENDING)) {
-            this.unzip(dFile.getAbsolutePath());
-        }
-        if (this.announce) {
-            this.plugin.getLogger().info("Finished updating.");
+        final boolean downloadSuccess = downloadFile();
+        if (downloadSuccess) {
+            this.result = UpdateResult.SUCCESS;
+
+            final File dFile = new File(folder.getAbsolutePath(), fileToSave);
+            if (dFile.getName().endsWith(ZIP_ENDING)) {
+                this.unzip(dFile.getAbsolutePath());
+            }
+            if (this.announce) {
+                this.plugin.getLogger().info("Finished updating.");
+            }
         }
     }
 
@@ -427,18 +428,19 @@ public class Updater {
      */
     @SuppressFBWarnings(value = { "WEAK_MESSAGE_DIGEST_MD5",
             "UAC_UNNECESSARY_API_CONVERSION_FILE_TO_PATH" }, justification = "CurseForge does not offer a more secure hashing algorithm to compare to and false positive")
-    private void downloadFile() {
+    private boolean downloadFile() {
         URL fileUrl = null;
         int fileLength = 0;
         try {
             fileUrl = followRedirects(this.versionLink);
+            if (fileUrl == null) {
+                return false;
+            }
             fileLength = fileUrl.openConnection().getContentLength();
         } catch (final IOException e) {
             this.plugin.getLogger().log(Level.SEVERE, null, e);
             this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
-        }
-        if (fileUrl == null) {
-            return;
+            return false;
         }
 
         final File updateFile = new File(this.updateFolder, this.file.getName());
@@ -469,48 +471,56 @@ public class Updater {
             final String md5 = stringBuilder.toString();
             if (!md5.equals(this.versionMD5)) {
                 this.plugin.getLogger().warning("Downloaded file did not match the remote file!");
-                this.fileIOOrError(updateFile, updateFile.delete(), false);
                 this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
+                this.fileIOOrError(updateFile, updateFile.delete(), false);
+                return false;
             }
         } catch (final Exception ex) {
             this.plugin.getLogger().log(Level.WARNING, "The auto-updater tried to download a new update, but was unsuccessful.", ex);
             this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
+            return false;
         }
+        return true;
     }
 
-    @SuppressWarnings({ "static-method", "PMD.AvoidBranchingStatementAsLastInLoop" })
+    @SuppressWarnings({ "PMD.AvoidBranchingStatementAsLastInLoop" })
     @SuppressFBWarnings("UPM_UNCALLED_PRIVATE_METHOD")
     private URL followRedirects(final String location) throws IOException {
-        URL resourceUrl;
-        URL base;
-        URL next;
-        HttpURLConnection conn;
-        String redLoc;
-        while (true) {
-            resourceUrl = new URL(location);
-            conn = (HttpURLConnection) resourceUrl.openConnection();
+        final int MAX_ITERATIONS = 5;
+        String redirectedLocation = location;
+        int iterations = 0;
+        URL fileURL = null;
 
+        while (iterations < MAX_ITERATIONS) {
+            final URL resourceUrl = new URL(redirectedLocation);
+            final HttpURLConnection conn = (HttpURLConnection) resourceUrl.openConnection();
             conn.setConnectTimeout(CONNECTION_TIMEOUT);
             conn.setReadTimeout(CONNECTION_TIMEOUT);
             conn.setInstanceFollowRedirects(false);
             conn.setRequestProperty("User-Agent", Updater.USER_AGENT);
-
-            String redirectedLocation = location;
+            fileURL = conn.getURL();
             switch (conn.getResponseCode()) {
-            case HttpURLConnection.HTTP_MOVED_PERM:
-            case HttpURLConnection.HTTP_MOVED_TEMP:
-                redLoc = conn.getHeaderField("Location");
-                base = new URL(redirectedLocation);
-                // Deal with relative URLs
-                next = new URL(base, redLoc);
-                redirectedLocation = next.toExternalForm();
-                continue;
-            default:
-                break;
+                case HttpURLConnection.HTTP_MOVED_PERM:
+                case HttpURLConnection.HTTP_MOVED_TEMP:
+                    final String redLoc = conn.getHeaderField("Location");
+                    final URL base = new URL(redirectedLocation);
+                    // Deal with relative URLs
+                    final URL next = new URL(base, redLoc);
+                    redirectedLocation = next.toExternalForm();
+                    iterations++;
+                    continue;
+                default:
+                    break;
             }
             break;
         }
-        return conn.getURL();
+        if (iterations == MAX_ITERATIONS) {
+            this.plugin.getLogger().log(Level.SEVERE,
+                    "The auto-updater tried to download a new update, but was unsuccessful because there were too many redirects");
+            this.result = Updater.UpdateResult.FAIL_DOWNLOAD;
+            return null;
+        }
+        return fileURL;
     }
 
     /**
@@ -684,7 +694,7 @@ public class Updater {
      * always consider a remote version at all different from that of the local version a new update.
      * </p>
      *
-     * @param localVersion  the current version
+     * @param localVersion the current version
      * @param remoteVersion the remote version
      * @return true if Updater should consider the remote version an update, false if not.
      */
@@ -802,9 +812,9 @@ public class Updater {
     /**
      * Perform a file operation and log any errors if it fails.
      *
-     * @param fileOperatedOn  file operation is performed on.
+     * @param fileOperatedOn file operation is performed on.
      * @param operationResult result of file operation.
-     * @param create          true if a file is being created, false if deleted.
+     * @param create true if a file is being created, false if deleted.
      */
     private void fileIOOrError(final File fileOperatedOn, final boolean operationResult, final boolean create) {
         if (!operationResult) {

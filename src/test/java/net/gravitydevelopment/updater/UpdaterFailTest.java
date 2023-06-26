@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.HttpURLConnection;
 import java.util.logging.Logger;
 
 import org.bukkit.Server;
@@ -22,17 +23,28 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 
+import com.google.gson.Gson;
+
 import io.github.glytching.junit.extension.folder.TemporaryFolder;
 import io.github.glytching.junit.extension.folder.TemporaryFolderExtension;
 import io.specto.hoverfly.junit.core.Hoverfly;
+import io.specto.hoverfly.junit.dsl.ResponseBuilder;
+import io.specto.hoverfly.junit.dsl.StubServiceBuilder;
 import io.specto.hoverfly.junit5.HoverflyExtension;
 import net.gravitydevelopment.updater.Updater.UpdateResult;
 import net.gravitydevelopment.updater.Updater.UpdateType;
+import net.gravitydevelopment.updater.api.model.Release;
 
+/**
+ * Test cases to test various error cases (API down, project ID invalid) the updater can encounter.
+ *
+ * @author timbru31
+ */
 @ExtendWith(TemporaryFolderExtension.class)
 @ExtendWith(HoverflyExtension.class)
 @SuppressWarnings("checkstyle:MissingCtor")
 class UpdaterFailTest {
+    private final Gson gson = new Gson();
     private static final String APPLICATION_JSON = "application/json";
     private static final String LOGGER_NAME = "UpdaterTest";
     private static final String PLUGIN_NAME = "ExamplePlugin";
@@ -180,5 +192,45 @@ class UpdaterFailTest {
         final UpdateResult updateResult = updater.getResult();
 
         assertEquals(UpdateResult.FAIL_NOVERSION, updateResult);
+    }
+
+    @Test
+    @DisplayName("should abort redirect loop (FAIL_DOWNLOAD)")
+    public void shouldAbortRedirectLoop(final TemporaryFolder temporaryFolder, final Hoverfly hoverfly) {
+        final String downloadUrl = "https://files.forgecdn.net/files/4559/190/SilkSpawners.jar";
+        final Release[] releases = { Release.builder().name("SilkSpawners v1.0").releaseType("release").projectId(35890).build(),
+                Release.builder().name("SilkSpawners v2.0").releaseType("release").downloadUrl(downloadUrl)
+                        .md5("77963b7a931377ad4ab5ad6a9cd718aa").projectId(35890).build() };
+
+        final StubServiceBuilder curseForgeApi = service(CURSEFORGE_API_URL).get(CURSEFORGE_API_PATH).anyQueryParams()
+                .willReturn(success(gson.toJson(releases), APPLICATION_JSON));
+
+        final StubServiceBuilder filesForgeCDN = service("https://files.forgecdn.net").get("/files/4559/190/SilkSpawners.jar")
+                .anyQueryParams().willReturn(ResponseBuilder.response().status(HttpURLConnection.HTTP_MOVED_PERM).header("Location",
+                        "https://mediafilez.forgecdn.net/files/4559/190/SilkSpawners.jar"));
+
+        final StubServiceBuilder mediaFilesForgeCDN = service("https://mediafilez.forgecdn.net").get("/files/4559/190/SilkSpawners.jar")
+                .anyQueryParams().willReturn(ResponseBuilder.response().status(HttpURLConnection.HTTP_MOVED_PERM).header("Location",
+                        "https://files.forgecdn.net/files/4559/190/SilkSpawners.jar"));
+
+        hoverfly.simulate(dsl(curseForgeApi, filesForgeCDN, mediaFilesForgeCDN));
+
+        final File pluginFolder = temporaryFolder.createDirectory(PLUGIN_NAME);
+
+        final Plugin mockedPlugin = mock(Plugin.class);
+        final Server mockedServer = mock(Server.class);
+        final Logger mockedLogger = Logger.getLogger(LOGGER_NAME);
+        final PluginDescriptionFile mockedDescription = mock(PluginDescriptionFile.class);
+        when(mockedPlugin.getLogger()).thenReturn(mockedLogger);
+        when(mockedPlugin.getServer()).thenReturn(mockedServer);
+        when(mockedPlugin.getDataFolder()).thenReturn(pluginFolder);
+        when(mockedDescription.getVersion()).thenReturn("1.0");
+        when(mockedPlugin.getDescription()).thenReturn(mockedDescription);
+        when(mockedServer.getUpdateFolderFile()).thenReturn(pluginFolder);
+
+        final Updater updater = new Updater(mockedPlugin, 123, new File("temp"), UpdateType.DEFAULT, false);
+        final UpdateResult updateResult = updater.getResult();
+
+        assertEquals(UpdateResult.FAIL_DOWNLOAD, updateResult);
     }
 }

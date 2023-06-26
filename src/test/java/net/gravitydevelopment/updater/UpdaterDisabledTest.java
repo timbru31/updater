@@ -20,6 +20,11 @@ import io.github.glytching.junit.extension.folder.TemporaryFolderExtension;
 import net.gravitydevelopment.updater.Updater.UpdateResult;
 import net.gravitydevelopment.updater.Updater.UpdateType;
 
+/**
+ * Test cases to check the correct behavior when the updater is disabled via config.
+ *
+ * @author timbru31
+ */
 @ExtendWith(TemporaryFolderExtension.class)
 @SuppressWarnings("checkstyle:MissingCtor")
 class UpdaterDisabledTest {
