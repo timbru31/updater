@@ -404,9 +404,10 @@ public class Updater {
     private void saveFile(final String fileToSave) {
         final File folder = this.updateFolder;
 
-        deleteOldFiles();
-        if (!folder.exists()) {
-            this.fileIOOrError(folder, folder.mkdir(), true);
+        if (!folder.exists()) {	
+            this.fileIOOrError(folder, folder.mkdir(), true);	
+        } else {	
+            deleteOldFiles();	
         }
 
         final boolean downloadSuccess = downloadFile();
